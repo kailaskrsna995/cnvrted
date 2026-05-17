@@ -25,7 +25,7 @@ def create_user(req: CreateUserRequest):
     return result.data[0]
 
 
-@users_router.get("/{user_id}")
+@users_router.get("/{user_id}/")
 def get_user(user_id: str):
     result = supabase.table("users").select("*").eq("id", user_id).execute()
     if not result.data:
@@ -33,7 +33,7 @@ def get_user(user_id: str):
     return result.data[0]
 
 
-@users_router.post("/{user_id}/saves/{lead_id}")
+@users_router.post("/{user_id}/saves/{lead_id}/")
 def save_post(user_id: str, lead_id: str):
     supabase.table("saved_posts").upsert(
         {"user_id": user_id, "lead_id": lead_id},
@@ -42,18 +42,18 @@ def save_post(user_id: str, lead_id: str):
     return {"saved": True}
 
 
-@users_router.delete("/{user_id}/saves/{lead_id}")
+@users_router.delete("/{user_id}/saves/{lead_id}/")
 def unsave_post(user_id: str, lead_id: str):
     supabase.table("saved_posts").delete().eq("user_id", user_id).eq("lead_id", lead_id).execute()
     return {"saved": False}
 
 
-@users_router.get("/{user_id}/saves")
+@users_router.get("/{user_id}/saves/")
 def get_saved_lead_ids(user_id: str):
     result = supabase.table("saved_posts").select("lead_id").eq("user_id", user_id).execute()
     return [r["lead_id"] for r in result.data]
 
 
-@search_router.post("/search")
+@search_router.post("/search/")
 def search(req: SearchRequest):
     return map_query_to_search(req.raw_query)
