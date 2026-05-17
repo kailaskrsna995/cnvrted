@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import leads, ingest
+from app.routes.users import users_router, search_router
 
 app = FastAPI(title="Intent Intelligence API")
 
@@ -13,6 +14,8 @@ app.add_middleware(
 
 app.include_router(leads.router)
 app.include_router(ingest.router)
+app.include_router(users_router)
+app.include_router(search_router)
 
 @app.get("/")
 def root():

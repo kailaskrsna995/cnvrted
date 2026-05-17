@@ -4,6 +4,7 @@ import asyncio
 from app.config import APIFY_API_TOKEN
 from app.database import supabase
 from app.scorer import score_post
+from typing import Optional, List
 
 KEYWORDS = {
     "AI Automation": [
@@ -67,60 +68,78 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     print(f"[Apify] dataset={dataset_id} items_status={items_resp.status_code} count={len(items_resp.json()) if items_resp.status_code == 200 else 'err'}")
     return items_resp.json() if items_resp.status_code == 200 else []
 
-async def run_ingestion():
+def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
+    results = []
+    for post in posts:
+        try:
+            text = post.get("text", "")
+            if not text or len(text) < 30:
+                continue
+            author_data = post.get("author", {})
+            first = author_data.get("firstName", "")
+            last = author_data.get("lastName", "")
+            author = f"{first} {last}".strip()
+            if not author:
+                continue
+            occupation = author_data.get("occupation", "")
+            profile_id = author_data.get("publicId", "")
+            url = post.get("url", "")
+
+            scored = score_post(text, category_hint=category)
+            if not scored.get("qualified"):
+                print(f"[Filter] Discarded — score={scored.get('intent_score')} text={text[:60]}")
+                continue
+
+            lead_id = generate_lead_id(url, text, author)
+            lead = {
+                "lead_id": lead_id,
+                "platform": "linkedin",
+                "author": author,
+                "profession": occupation,
+                "company": "",
+                "post_text": text,
+                "category": scored["category"],
+                "intent_score": scored["intent_score"],
+                "urgency": scored["urgency"],
+                "qualified": scored["qualified"],
+                "exact_need": scored.get("exact_need", ""),
+                "domain": scored.get("domain", ""),
+                "contact_email": scored.get("contact_email", ""),
+                "contact_phone": scored.get("contact_phone", ""),
+                "contact_linkedin": f"https://www.linkedin.com/in/{profile_id}" if profile_id else "",
+                "source_url": url,
+                "posted_at": None,
+                "user_id": user_id,
+            }
+            supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()
+            results.append(lead)
+            print(f"[Saved] {author} | score={scored['intent_score']} | {text[:60]}")
+        except Exception as e:
+            print(f"[Error] processing post: {e}")
+    return results
+
+
+async def run_ingestion(
+    custom_keywords: Optional[List[str]] = None,
+    domain: Optional[str] = None,
+    user_id: Optional[str] = None
+):
+    if custom_keywords:
+        keyword_map = [(domain or "Custom", kw) for kw in custom_keywords]
+    else:
+        keyword_map = [(cat, kw) for cat, kws in KEYWORDS.items() for kw in kws]
+
     results = []
     async with httpx.AsyncClient(timeout=300) as client:
-        for category, keywords in KEYWORDS.items():
-            for keyword in keywords:
-                try:
-                    posts = await fetch_apify_results(client, keyword)
-                    print(f"[Apify] '{keyword}' returned {len(posts)} posts")
+        # All keywords fire in parallel — cuts 3-4 min sequential to ~40s
+        tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
+        all_posts = await asyncio.gather(*tasks, return_exceptions=True)
 
-                    for post in posts:
-                        text = post.get("text", "")
-                        if not text or len(text) < 30:
-                            continue
+        for (category, keyword), posts in zip(keyword_map, all_posts):
+            if isinstance(posts, Exception):
+                print(f"[Error] keyword='{keyword}': {posts}")
+                continue
+            print(f"[Apify] '{keyword}' returned {len(posts)} posts")
+            results.extend(_process_posts(posts, category, user_id))
 
-                        author_data = post.get("author", {})
-                        first = author_data.get("firstName", "")
-                        last = author_data.get("lastName", "")
-                        author = f"{first} {last}".strip()
-                        if not author:
-                            continue
-                        occupation = author_data.get("occupation", "")
-                        profile_id = author_data.get("publicId", "")
-                        url = post.get("url", "")
-
-                        # Pass 1: filter spam with LLM
-                        scored = score_post(text)
-                        if not scored.get("qualified"):
-                            print(f"[Filter] Discarded — score={scored.get('intent_score')} text={text[:60]}")
-                            continue
-
-                        lead_id = generate_lead_id(url, text, author)
-                        lead = {
-                            "lead_id": lead_id,
-                            "platform": "linkedin",
-                            "author": author,
-                            "profession": occupation,
-                            "company": "",
-                            "post_text": text,
-                            "category": scored["category"],
-                            "intent_score": scored["intent_score"],
-                            "urgency": scored["urgency"],
-                            "qualified": scored["qualified"],
-                            "exact_need": scored.get("exact_need", ""),
-                            "domain": scored.get("domain", ""),
-                            "contact_email": scored.get("contact_email", ""),
-                            "contact_phone": scored.get("contact_phone", ""),
-                            "contact_linkedin": f"https://www.linkedin.com/in/{profile_id}" if profile_id else "",
-                            "source_url": url,
-                            "posted_at": None,
-                        }
-                        supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()
-                        results.append(lead)
-                        print(f"[Saved] {author} | score={scored['intent_score']} | {text[:60]}")
-
-                except Exception as e:
-                    print(f"[Error] keyword='{keyword}': {e}")
     return results

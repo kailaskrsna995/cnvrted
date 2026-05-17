@@ -1,12 +1,20 @@
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Body
+from pydantic import BaseModel
+from typing import Optional, List
 from app.ingestion import run_ingestion
 from app.database import supabase
 from app.scorer import score_post
-import hashlib, uuid
-from datetime import datetime, timedelta
+import hashlib
+from datetime import datetime, timezone, timedelta
 import random
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
+
+
+class IngestRequest(BaseModel):
+    user_id: Optional[str] = None
+    keywords: Optional[List[str]] = None
+    domain: Optional[str] = None
 
 MOCK_POSTS = [
     {"author": "Sarah Chen", "company": "TechFlow Inc", "text": "Our support team is drowning in repetitive tickets. We desperately need AI automation to handle FAQs. Any recommendations for tools or agencies that specialize in this?", "category": "AI Automation"},
@@ -44,6 +52,21 @@ async def seed_mock_leads():
     return {"seeded": len(inserted)}
 
 @router.post("/")
-async def trigger_ingestion(background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_ingestion)
+async def trigger_ingestion(
+    background_tasks: BackgroundTasks,
+    req: IngestRequest = Body(default=IngestRequest())
+):
+    if req.user_id:
+        user_result = supabase.table("users").select("last_scanned_at").eq("id", req.user_id).execute()
+        if user_result.data and user_result.data[0].get("last_scanned_at"):
+            last_str = user_result.data[0]["last_scanned_at"]
+            last = datetime.fromisoformat(last_str.replace("Z", "+00:00"))
+            elapsed = (datetime.now(timezone.utc) - last).total_seconds()
+            if elapsed < 1800:
+                return {"status": "cooldown", "remaining_seconds": int(1800 - elapsed)}
+        supabase.table("users").update({
+            "last_scanned_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", req.user_id).execute()
+
+    background_tasks.add_task(run_ingestion, req.keywords, req.domain, req.user_id)
     return {"status": "Scan started in background"}
