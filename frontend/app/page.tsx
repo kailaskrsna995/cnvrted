@@ -60,7 +60,7 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string) => void
     if (!name.trim() || loading) return
     setLoading(true)
     try {
-      const res = await fetch(`${API}/users`, {
+      const res = await fetch(`${API}/users/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), position: position.trim() })
@@ -172,7 +172,7 @@ export default function Dashboard() {
 
   const fetchUser = async (id: string) => {
     try {
-      const res = await fetch(`${API}/users/${id}`)
+      const res = await fetch(`${API}/users/${id}/`)
       if (!res.ok) return
       const data = await res.json()
       if (data.last_scanned_at) {
@@ -185,7 +185,7 @@ export default function Dashboard() {
 
   const fetchSaved = async (id: string) => {
     try {
-      const res = await fetch(`${API}/users/${id}/saves`)
+      const res = await fetch(`${API}/users/${id}/saves/`)
       if (!res.ok) return
       const data: string[] = await res.json()
       setSavedLeadIds(new Set(data))
@@ -217,7 +217,7 @@ export default function Dashboard() {
     if (!searchQuery.trim() || searchLoading) return
     setSearchLoading(true)
     try {
-      const res = await fetch(`${API}/search`, {
+      const res = await fetch(`${API}/search/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_query: searchQuery.trim() })
@@ -261,7 +261,7 @@ export default function Dashboard() {
       return s
     })
     try {
-      await fetch(`${API}/users/${userId}/saves/${lead.lead_id}`, {
+      await fetch(`${API}/users/${userId}/saves/${lead.lead_id}/`, {
         method: isSaved ? 'DELETE' : 'POST'
       })
     } catch {
