@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -55,8 +55,25 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   const [username, setUsername] = useState('')
   const [profession, setProfession] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const rightPanelRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const panel = rightPanelRef.current
+    const grid = gridRef.current
+    if (!panel || !grid) return
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = panel.getBoundingClientRect()
+      const x = (e.clientX - rect.left) / rect.width - 0.5
+      const y = (e.clientY - rect.top) / rect.height - 0.5
+      grid.style.transform = `translate(${x * 10}px, ${y * 10}px)`
+    }
+    panel.addEventListener('mousemove', handleMouseMove)
+    return () => panel.removeEventListener('mousemove', handleMouseMove)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,85 +109,153 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   }
 
   return (
-    <div className="h-screen flex">
-      <div className="w-1/2 flex flex-col justify-between p-12 bg-black">
-        <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
-        <div>
-          <h1 className="font-canela text-5xl font-light text-white leading-tight mb-4">
-            Your buyers are<br />already talking.
-          </h1>
-          <p className="font-mono-custom text-xs text-white/40 uppercase tracking-widest leading-relaxed">
-            Intent signals from LinkedIn,<br />scored by AI in real time
-          </p>
-        </div>
-        <p className="font-mono-custom text-xs text-white/20 uppercase tracking-widest">Est. 2026</p>
-      </div>
+    <>
+      <style>{`
+        @keyframes grain {
+          0%,100% { transform: translate(0,0) }
+          10% { transform: translate(-2%,-1%) }
+          20% { transform: translate(1%,2%) }
+          30% { transform: translate(-1%,1%) }
+          40% { transform: translate(2%,-2%) }
+          50% { transform: translate(-1%,2%) }
+          60% { transform: translate(1%,-1%) }
+          70% { transform: translate(-2%,1%) }
+          80% { transform: translate(2%,2%) }
+          90% { transform: translate(-1%,-2%) }
+        }
+        @keyframes glow-drift {
+          0%,100% { transform: translate(-50%,-50%) scale(1) }
+          33% { transform: translate(-44%,-56%) scale(1.06) }
+          66% { transform: translate(-56%,-44%) scale(0.95) }
+        }
+        @keyframes breathe {
+          0%,100% { opacity: 0.08 }
+          50% { opacity: 0.18 }
+        }
+      `}</style>
+      <div className="h-screen flex">
 
-      <div className="w-1/2 flex items-center justify-center bg-white grid-bg">
-        <div className="w-full max-w-sm px-8">
-          <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Get started</p>
-          <h2 className="font-canela text-3xl font-light text-black mb-8">Set up your workspace.</h2>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Your full name"
-                className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="e.g. kailas95"
-                className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
-              />
-            </div>
-            <div>
-              <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">
-                Profession <span className="text-gray-300 normal-case">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={profession}
-                onChange={e => setProfession(e.target.value)}
-                placeholder="e.g. Founder, Sales Lead"
-                className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
-              />
-            </div>
-            <div>
-              <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Choose a password"
-                className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
-              />
-            </div>
-            {error && (
-              <p className="font-mono-custom text-xs text-red-500 uppercase tracking-widest">{error}</p>
-            )}
-            <button
-              type="submit"
-              disabled={!username.trim() || !password.trim() || loading}
-              className="font-mono-custom mt-2 w-full border border-black bg-black text-white text-xs px-3 py-2.5 uppercase tracking-widest hover:bg-gray-900 transition disabled:opacity-40"
-            >
-              {loading ? 'Setting up...' : 'Enter →'}
-            </button>
-            <p className="font-mono-custom text-xs text-gray-400 text-center">
-              Returning? Enter your username + password to sign back in.
+        {/* Left — black brand panel */}
+        <div className="relative w-1/2 flex flex-col justify-between p-12 bg-black overflow-hidden">
+          {/* Grain */}
+          <div style={{
+            position:'absolute', inset:'-50%', width:'200%', height:'200%',
+            backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            opacity:0.045, animation:'grain 8s steps(10) infinite', pointerEvents:'none'
+          }} />
+          {/* Radial glow */}
+          <div style={{
+            position:'absolute', top:'50%', left:'45%',
+            width:'70%', height:'70%',
+            background:'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)',
+            animation:'glow-drift 14s ease-in-out infinite', pointerEvents:'none'
+          }} />
+          {/* Breathing blur */}
+          <div style={{
+            position:'absolute', inset:0,
+            backdropFilter:'blur(0.4px)',
+            animation:'breathe 7s ease-in-out infinite', pointerEvents:'none'
+          }} />
+
+          <span className="relative font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
+          <div className="relative">
+            <h1 className="font-canela text-5xl font-light text-white leading-tight mb-4">
+              Your buyers are<br />already talking.
+            </h1>
+            <p className="font-mono-custom text-xs text-white/40 uppercase tracking-widest leading-relaxed">
+              Intent signals from LinkedIn,<br />scored by AI in real time
             </p>
-          </form>
+          </div>
+          <p className="relative font-mono-custom text-xs text-white/20 uppercase tracking-widest">Est. 2026</p>
         </div>
+
+        {/* Right — form */}
+        <div ref={rightPanelRef} className="relative w-1/2 flex items-center justify-center bg-white overflow-hidden">
+          {/* Parallax grid */}
+          <div ref={gridRef} className="absolute inset-[-10%] w-[120%] h-[120%] grid-bg transition-transform duration-100 ease-out" style={{ opacity:0.55 }} />
+
+          <div className="relative w-full max-w-sm px-8">
+            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Get started</p>
+            <h2 className="font-canela text-3xl font-light text-black mb-8">Set up your workspace.</h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+              <div>
+                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Name</label>
+                <input
+                  type="text" value={name} onChange={e => setName(e.target.value)}
+                  placeholder="Your full name" autoFocus
+                  className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
+                />
+              </div>
+
+              <div>
+                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Username</label>
+                <input
+                  type="text" value={username} onChange={e => setUsername(e.target.value)}
+                  placeholder="e.g. kailas95"
+                  className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
+                />
+              </div>
+
+              <div>
+                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">
+                  Profession <span className="text-gray-300 normal-case">(optional)</span>
+                </label>
+                <input
+                  type="text" value={profession} onChange={e => setProfession(e.target.value)}
+                  placeholder="e.g. Founder, Sales Lead"
+                  className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
+                />
+              </div>
+
+              <div>
+                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'} value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Choose a password"
+                    className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 pr-10 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
+                  />
+                  <button
+                    type="button" tabIndex={-1}
+                    onClick={() => setShowPassword(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-black transition-colors duration-150"
+                  >
+                    {showPassword ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error && <p className="font-mono-custom text-xs text-red-500 uppercase tracking-widest">{error}</p>}
+
+              <button
+                type="submit"
+                disabled={!username.trim() || !password.trim() || loading}
+                className="font-mono-custom mt-2 w-full border border-black bg-black text-white text-xs px-3 py-2.5 uppercase tracking-widest hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-md transition-all duration-150 disabled:opacity-40 disabled:translate-y-0 disabled:shadow-none"
+              >
+                {loading ? 'Setting up...' : 'Enter →'}
+              </button>
+
+              <p className="font-mono-custom text-xs text-gray-400 text-center">
+                Returning? Enter your username + password to sign back in.
+              </p>
+            </form>
+          </div>
+        </div>
+
       </div>
-    </div>
+    </>
   )
 }
 
