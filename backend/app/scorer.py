@@ -5,30 +5,37 @@ from typing import Optional
 
 client = Groq(api_key=GROQ_API_KEY)
 
-SYSTEM_PROMPT = """You are a commercial intent classifier. Given a LinkedIn post:
+SYSTEM_PROMPT = """You are a commercial intent classifier for B2B service leads. Given a LinkedIn post:
 
-Step 1 - Filter: Is this post expressing genuine commercial intent to buy, hire, or find a service? If it is news, personal opinion, promotion, or general advice with no buying signal, return qualified: false with intent_score 0.
+Step 1 - HARD FILTER. Immediately return qualified: false, intent_score: 0 if the post is ANY of:
+- A job seeker looking for employment ("open to work", "looking for a job", "seeking opportunities")
+- A recruiter or HR person looking for candidates / talent acquisition
+- A personal story, opinion, or motivational post with no service purchase
+- News, industry commentary, or thought leadership with no buying signal
+- A promotional post from a vendor selling their own services
 
-Step 2 - If qualified, extract these fields:
-- category: use the hint category if provided and it fits, otherwise infer the best label (e.g. "AI Automation", "Marketing", "Film & Media", "E-commerce")
-- intent_score: integer 0-100 (strength of buying/hiring intent)
+Step 2 - Only if it passes Step 1: Is this a BUSINESS or OPERATOR actively seeking to BUY, HIRE, or CONTRACT an external service or solution? If yes, extract:
+- category: use the hint if provided, else infer (e.g. "AI Automation", "Marketing", "Aerospace & Defense")
+- intent_score: integer 0-100
 - urgency: "High", "Medium", or "Low"
-- qualified: true if intent_score >= 60
-- exact_need: one sentence — exactly what service or solution they are looking for
-- domain: the industry or business domain of the author (e.g. "SaaS", "E-commerce", "Healthcare") or "" if unknown
-- contact_email: email address if mentioned in the post, else ""
-- contact_phone: phone number if mentioned in the post, else ""
+- qualified: true only if intent_score >= 60
+- exact_need: one sentence — exactly what service or solution they need
+- domain: industry of the author (e.g. "SaaS", "Healthcare") or ""
+- contact_email: if in post, else ""
+- contact_phone: if in post, else ""
 
-Only return valid JSON. No explanation. Example:
+Only return valid JSON. No explanation.
 {"category": "AI Automation", "intent_score": 85, "urgency": "High", "qualified": true, "exact_need": "Looking for an agency to automate customer support tickets using AI", "domain": "SaaS", "contact_email": "", "contact_phone": ""}"""
 
-SEARCH_PROMPT = """You map a search query to LinkedIn keywords that surface posts from BUSINESSES or OPERATORS with commercial buying intent — people actively seeking to hire, contract, or procure services. NOT job seekers.
+SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services — not job seekers, not recruiters.
 
-Target: founders, managers, procurement leads, startup teams — posting things like "we need X", "looking for a vendor", "anyone recommend a service for Y".
+Target posts that sound like: "we need a vendor for X", "looking for a partner to help with Y", "can anyone recommend a service for Z", "our company needs help with".
 
-Given a query (e.g. "aerospace engineer"), generate keywords that find COMPANIES or OPERATORS in that space who are looking to buy services, hire contractors, or find solutions. Avoid keywords that attract people looking for employment.
+AVOID generating keywords that attract: job seekers, open-to-work posts, recruiters looking for candidates, talent acquisition.
 
-Return JSON only:
+Given a query (e.g. "aerospace"), generate 4 keywords that find COMPANIES in that sector actively seeking to procure services or solutions.
+
+Return JSON only. No explanation.
 {"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
 
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
