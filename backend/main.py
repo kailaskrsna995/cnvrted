@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import leads, ingest
 from app.routes.users import users_router, search_router
 
-app = FastAPI(title="Intent Intelligence API")
+app = FastAPI(title="Intent Intelligence API", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
