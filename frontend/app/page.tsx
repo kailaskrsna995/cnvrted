@@ -322,13 +322,30 @@ export default function Dashboard() {
 
   const triggerIngest = async () => {
     if (cooldownRemaining > 0 || loading) return
+
+    // Auto-submit search if user typed but didn't hit →
+    let search = activeSearch
+    if (!search && searchQuery.trim()) {
+      setSearchLoading(true)
+      try {
+        const res = await fetch(`${API}/search/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw_query: searchQuery.trim() })
+        })
+        search = await res.json()
+        setActiveSearch(search)
+      } catch {}
+      setSearchLoading(false)
+    }
+
     setLoading(true)
     try {
       const body: Record<string, unknown> = {}
       if (userId) body.user_id = userId
-      if (activeSearch) {
-        body.keywords = activeSearch.keywords
-        body.domain = activeSearch.domain
+      if (search) {
+        body.keywords = search.keywords
+        body.domain = search.domain
       }
       const res = await fetch(`${API}/ingest/`, {
         method: 'POST',
@@ -336,7 +353,11 @@ export default function Dashboard() {
         body: JSON.stringify(body)
       })
       const data = await res.json()
-      if (data.status === 'cooldown') setCooldownRemaining(data.remaining_seconds)
+      if (data.status === 'cooldown') {
+        setCooldownRemaining(data.remaining_seconds)
+      } else {
+        setCooldownRemaining(1800)
+      }
     } catch {}
     setLoading(false)
   }
