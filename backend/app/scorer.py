@@ -22,14 +22,14 @@ Step 2 - If qualified, extract these fields:
 Only return valid JSON. No explanation. Example:
 {"category": "AI Automation", "intent_score": 85, "urgency": "High", "qualified": true, "exact_need": "Looking for an agency to automate customer support tickets using AI", "domain": "SaaS", "contact_email": "", "contact_phone": ""}"""
 
-SEARCH_PROMPT = """You map a user's search query to LinkedIn search keywords for surfacing posts with commercial buying intent.
+SEARCH_PROMPT = """You map a search query to LinkedIn keywords that surface posts from BUSINESSES or OPERATORS with commercial buying intent — people actively seeking to hire, contract, or procure services. NOT job seekers.
 
-Given a query (e.g. "filmmaker", "restaurant owner needing marketing"), return:
-- domain: clean industry label (e.g. "Film & Media", "Food & Beverage")
-- keywords: array of 3-5 search phrases that would surface LinkedIn posts from people actively looking to hire or buy services in this space
+Target: founders, managers, procurement leads, startup teams — posting things like "we need X", "looking for a vendor", "anyone recommend a service for Y".
 
-Only return valid JSON. Example:
-{"domain": "Film & Media", "keywords": ["filmmaker looking for", "video production help needed", "film crew hiring", "post production services"]}"""
+Given a query (e.g. "aerospace engineer"), generate keywords that find COMPANIES or OPERATORS in that space who are looking to buy services, hire contractors, or find solutions. Avoid keywords that attract people looking for employment.
+
+Return JSON only:
+{"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
 
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     hint = f"\nFor this post, prefer category: \"{category_hint}\" if it fits." if category_hint else ""

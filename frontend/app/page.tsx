@@ -408,33 +408,17 @@ export default function Dashboard() {
         </div>
 
         <div className="px-4 pt-4">
-          <form onSubmit={handleSearch}>
-            <div className="flex gap-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="e.g. filmmaker"
-                className="font-mono-custom flex-1 min-w-0 border border-black/20 px-2 py-1.5 text-xs outline-none focus:border-black transition placeholder:text-gray-300"
-              />
-              <button
-                type="submit"
-                disabled={searchLoading || !searchQuery.trim()}
-                className="font-mono-custom border border-black/20 px-2 py-1.5 text-xs hover:bg-black hover:text-white hover:border-black transition disabled:opacity-40"
-              >
-                {searchLoading ? '…' : '→'}
-              </button>
-            </div>
-          </form>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="e.g. filmmaker"
+            className="font-mono-custom w-full border border-black/20 px-2 py-1.5 text-xs outline-none focus:border-black transition placeholder:text-gray-300"
+          />
           {activeSearch && (
             <div className="mt-2.5 px-0.5">
               <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">Domain</p>
               <p className="font-canela text-sm text-black mt-0.5">{activeSearch.domain}</p>
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {activeSearch.keywords.slice(0, 3).map(kw => (
-                  <span key={kw} className="font-mono-custom text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 leading-tight">{kw}</span>
-                ))}
-              </div>
             </div>
           )}
         </div>

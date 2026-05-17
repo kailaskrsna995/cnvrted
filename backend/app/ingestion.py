@@ -68,12 +68,22 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     print(f"[Apify] dataset={dataset_id} items_status={items_resp.status_code} count={len(items_resp.json()) if items_resp.status_code == 200 else 'err'}")
     return items_resp.json() if items_resp.status_code == 200 else []
 
+def _is_english(text: str) -> bool:
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return False
+    return sum(1 for c in letters if ord(c) < 128) / len(letters) > 0.8
+
+
 def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
     results = []
     for post in posts:
         try:
             text = post.get("text", "")
             if not text or len(text) < 30:
+                continue
+            if not _is_english(text):
+                print(f"[Filter] Non-English post skipped: {text[:60]}")
                 continue
             author_data = post.get("author", {})
             first = author_data.get("firstName", "")
@@ -89,6 +99,9 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
             if not scored.get("qualified"):
                 print(f"[Filter] Discarded — score={scored.get('intent_score')} text={text[:60]}")
                 continue
+            # Force category to match searched domain so leads stay in the right feed
+            if category and category != "Custom":
+                scored["category"] = category
 
             lead_id = generate_lead_id(url, text, author)
             lead = {
