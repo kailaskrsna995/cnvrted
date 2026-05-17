@@ -50,33 +50,49 @@ function formatCountdown(secs: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function OnboardingScreen({ onComplete }: { onComplete: (userId: string, name: string) => void }) {
+function OnboardingScreen({ onComplete }: { onComplete: (userId: string, displayName: string) => void }) {
   const [name, setName] = useState('')
-  const [position, setPosition] = useState('')
+  const [username, setUsername] = useState('')
+  const [profession, setProfession] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || loading) return
+    if (!username.trim() || !password.trim() || loading) return
     setLoading(true)
+    setError('')
     try {
-      const res = await fetch(`${API}/users/`, {
+      const res = await fetch(`${API}/users/auth/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), position: position.trim() })
+        body: JSON.stringify({
+          username: username.trim().toLowerCase(),
+          name: name.trim(),
+          profession: profession.trim(),
+          password
+        })
       })
+      if (res.status === 401) {
+        setError('Incorrect password.')
+        setLoading(false)
+        return
+      }
       const user = await res.json()
+      const displayName = user.name || user.username
       localStorage.setItem('cnvrted_user_id', user.id)
-      localStorage.setItem('cnvrted_user_name', user.name)
-      onComplete(user.id, user.name)
+      localStorage.setItem('cnvrted_user_name', displayName)
+      localStorage.setItem('cnvrted_username', user.username)
+      onComplete(user.id, displayName)
     } catch {
+      setError('Something went wrong. Try again.')
       setLoading(false)
     }
   }
 
   return (
     <div className="h-screen flex">
-      {/* Left — black brand panel */}
       <div className="w-1/2 flex flex-col justify-between p-12 bg-black">
         <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
         <div>
@@ -90,7 +106,6 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, name: s
         <p className="font-mono-custom text-xs text-white/20 uppercase tracking-widest">Est. 2026</p>
       </div>
 
-      {/* Right — form */}
       <div className="w-1/2 flex items-center justify-center bg-white grid-bg">
         <div className="w-full max-w-sm px-8">
           <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Get started</p>
@@ -102,30 +117,56 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, name: s
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Your name"
+                placeholder="Your full name"
                 className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
                 autoFocus
               />
             </div>
             <div>
+              <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="e.g. kailas95"
+                className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
+              />
+            </div>
+            <div>
               <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">
-                Position <span className="text-gray-300 normal-case">(optional)</span>
+                Profession <span className="text-gray-300 normal-case">(optional)</span>
               </label>
               <input
                 type="text"
-                value={position}
-                onChange={e => setPosition(e.target.value)}
+                value={profession}
+                onChange={e => setProfession(e.target.value)}
                 placeholder="e.g. Founder, Sales Lead"
                 className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
               />
             </div>
+            <div>
+              <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Choose a password"
+                className="font-canela text-base w-full border border-black/20 px-3 py-2 outline-none focus:border-black transition"
+              />
+            </div>
+            {error && (
+              <p className="font-mono-custom text-xs text-red-500 uppercase tracking-widest">{error}</p>
+            )}
             <button
               type="submit"
-              disabled={!name.trim() || loading}
+              disabled={!username.trim() || !password.trim() || loading}
               className="font-mono-custom mt-2 w-full border border-black bg-black text-white text-xs px-3 py-2.5 uppercase tracking-widest hover:bg-gray-900 transition disabled:opacity-40"
             >
               {loading ? 'Setting up...' : 'Enter →'}
             </button>
+            <p className="font-mono-custom text-xs text-gray-400 text-center">
+              Returning? Enter your username + password to sign back in.
+            </p>
           </form>
         </div>
       </div>
@@ -158,7 +199,10 @@ function ProfileModal({ userName, userPosition, savedLeadIds, onClose }: {
             </div>
             <div>
               <p className="font-canela text-base font-medium text-black leading-tight">{userName}</p>
-              {userPosition && <p className="font-mono-custom text-xs text-gray-400 mt-0.5">{userPosition}</p>}
+              <p className="font-mono-custom text-xs text-gray-400 mt-0.5">
+                @{typeof window !== 'undefined' ? localStorage.getItem('cnvrted_username') || '' : ''}
+                {userPosition ? ` · ${userPosition}` : ''}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="font-mono-custom text-xs text-gray-400 hover:text-black uppercase tracking-widest transition">✕</button>
@@ -261,9 +305,11 @@ export default function Dashboard() {
       const res = await fetch(`${API}/users/${id}/`)
       if (!res.ok) return
       const data = await res.json()
-      setUserName(data.name || '')
-      setUserPosition(data.position || '')
-      localStorage.setItem('cnvrted_user_name', data.name || '')
+      const displayName = data.name || data.username || ''
+      setUserName(displayName)
+      setUserPosition(data.profession || '')
+      localStorage.setItem('cnvrted_user_name', displayName)
+      if (data.username) localStorage.setItem('cnvrted_username', data.username)
       if (data.last_scanned_at) {
         const elapsed = (Date.now() - new Date(data.last_scanned_at).getTime()) / 1000
         const remaining = Math.max(0, 1800 - elapsed)

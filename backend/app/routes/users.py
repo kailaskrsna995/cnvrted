@@ -2,25 +2,43 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.database import supabase
 from app.scorer import map_query_to_search
+import hashlib
 
 users_router = APIRouter(prefix="/users", tags=["users"])
 search_router = APIRouter(tags=["search"])
 
 
-class CreateUserRequest(BaseModel):
-    name: str
-    position: str = ""
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+    name: str = ""
+    profession: str = ""
 
 
 class SearchRequest(BaseModel):
     raw_query: str
 
 
-@users_router.post("/")
-def create_user(req: CreateUserRequest):
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+@users_router.post("/auth/")
+def auth(req: AuthRequest):
+    existing = supabase.table("users").select("*").eq("username", req.username).execute()
+
+    if existing.data:
+        user = existing.data[0]
+        if user["password_hash"] != hash_password(req.password):
+            raise HTTPException(status_code=401, detail="Incorrect password")
+        return user
+
+    # New user — register
     result = supabase.table("users").insert({
+        "username": req.username,
         "name": req.name,
-        "position": req.position
+        "profession": req.profession,
+        "password_hash": hash_password(req.password)
     }).execute()
     return result.data[0]
 
