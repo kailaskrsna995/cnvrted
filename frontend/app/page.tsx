@@ -16,7 +16,7 @@ type Lead = {
   exact_need: string
   category: string
   intent_score: number
-  urgency: string
+  timeline: string
   source_url: string
   contact_email: string
   contact_phone: string
@@ -32,9 +32,9 @@ function scoreColor(score: number) {
   return 'bg-gray-200 text-gray-700'
 }
 
-function urgencyColor(urgency: string) {
-  if (urgency === 'High') return 'text-red-500'
-  if (urgency === 'Medium') return 'text-amber-500'
+function timelineColor(timeline: string) {
+  if (timeline === 'Urgent') return 'text-red-500'
+  if (timeline === 'Active') return 'text-amber-500'
   return 'text-gray-400'
 }
 
@@ -554,7 +554,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`font-mono-custom text-xs font-bold ${urgencyColor(lead.urgency)}`}>{lead.urgency}</span>
+                    <span className={`font-mono-custom text-xs font-bold ${timelineColor(lead.timeline)}`}>{lead.timeline}</span>
                     <span className={`font-mono-custom text-xs px-2 py-1 font-bold ${scoreColor(lead.intent_score)}`}>
                       {lead.intent_score}
                     </span>

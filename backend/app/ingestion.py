@@ -140,7 +140,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
                 "post_text": text,
                 "category": scored["category"],
                 "intent_score": scored["intent_score"],
-                "urgency": scored["urgency"],
+                "timeline": scored.get("timeline", "Active"),
                 "qualified": scored["qualified"],
                 "exact_need": scored.get("exact_need", ""),
                 "domain": scored.get("domain", ""),

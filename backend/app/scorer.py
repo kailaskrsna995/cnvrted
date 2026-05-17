@@ -9,23 +9,41 @@ client = Groq(api_key=GROQ_API_KEY)
 SYSTEM_PROMPT = """You are a commercial intent classifier for B2B service leads. Given a LinkedIn post:
 
 Step 1 - HARD FILTER. Immediately return qualified: false, intent_score: 0 if the post is ONLY:
-- An individual looking for a job for themselves ("I'm open to work", "hire me", "looking for opportunities", "seeking a role")
-- A purely personal story or opinion with zero commercial intent and no spend signal
+- An individual looking for a job for themselves ("open to work", "hire me", "seeking a role")
+- A purely personal story or opinion with zero commercial spend signal
 
-Everything else is a potential customer. A company hiring, a recruiter sourcing, a business buying tools, a founder seeking vendors — all qualify if there is spend or procurement intent.
+Everything else is a potential customer.
 
-Step 2 - Only if it passes Step 1: Does this post signal that someone has budget and a need — whether hiring, buying, contracting, or procuring? If yes, extract:
+Step 2 - Extract the following fields:
+
+INTENT SCORE (0-100): Score ONLY on probability they will buy or contract a service.
+Score higher for:
+- They clearly know what they need (specific ask, not vague)
+- Budget is mentioned or implied ("approved budget", "paid", "willing to pay")
+- They are the decision maker (founder, CEO, manager, head of)
+- They are actively asking for recommendations or vendors right now
+- The problem they describe is urgent and well-defined
+Score lower for:
+- Vague interest ("thinking about", "exploring", "someday")
+- No clear ask or need stated
+- Junior role with no buying power
+DO NOT factor in timeline, tone, or post recency into this score.
+
+TIMELINE: How soon do they need it — based purely on language speed:
+- "Urgent" — language signals immediate need ("ASAP", "this week", "urgent", "right now", "immediately")
+- "Active" — actively looking but no hard deadline ("looking for", "need a", "searching for")
+- "Passive" — exploratory or future intent ("thinking about", "considering", "eventually")
+
+Other fields:
 - category: use the hint if provided, else infer (e.g. "AI Automation", "Marketing", "Aerospace & Defense")
-- intent_score: integer 0-100
-- urgency: "High", "Medium", or "Low"
 - qualified: true only if intent_score >= 60
-- exact_need: one sentence — exactly what service or solution they need
+- exact_need: one sentence — exactly what they need
 - domain: industry of the author (e.g. "SaaS", "Healthcare") or ""
 - contact_email: if in post, else ""
 - contact_phone: if in post, else ""
 
 Only return valid JSON. No explanation.
-{"category": "AI Automation", "intent_score": 85, "urgency": "High", "qualified": true, "exact_need": "Looking for an agency to automate customer support tickets using AI", "domain": "SaaS", "contact_email": "", "contact_phone": ""}"""
+{"category": "AI Automation", "intent_score": 85, "timeline": "Urgent", "qualified": true, "exact_need": "Looking for an agency to automate customer support tickets using AI", "domain": "SaaS", "contact_email": "", "contact_phone": ""}"""
 
 SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services — not job seekers, not recruiters.
 

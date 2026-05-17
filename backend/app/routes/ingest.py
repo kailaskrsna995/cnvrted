@@ -42,7 +42,7 @@ async def seed_mock_leads():
             "post_text": post["text"],
             "category": scored.get("category", post["category"]),
             "intent_score": scored.get("intent_score", 80),
-            "urgency": scored.get("urgency", "High"),
+            "timeline": scored.get("timeline", "Active"),
             "qualified": True,
             "source_url": f"https://linkedin.com/mock/{lead_id}",
             "posted_at": (datetime.utcnow() - timedelta(minutes=mins_ago)).isoformat(),
