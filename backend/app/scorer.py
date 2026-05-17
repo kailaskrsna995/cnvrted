@@ -8,13 +8,14 @@ client = Groq(api_key=GROQ_API_KEY)
 SYSTEM_PROMPT = """You are a commercial intent classifier for B2B service leads. Given a LinkedIn post:
 
 Step 1 - HARD FILTER. Immediately return qualified: false, intent_score: 0 if the post is ANY of:
-- A job seeker looking for employment ("open to work", "looking for a job", "seeking opportunities")
-- A recruiter or HR person looking for candidates / talent acquisition
-- A personal story, opinion, or motivational post with no service purchase
+- A job seeker looking for employment ("open to work", "looking for a job", "seeking opportunities", "hire me")
+- A personal story, opinion, or motivational post with no service purchase signal
 - News, industry commentary, or thought leadership with no buying signal
 - A promotional post from a vendor selling their own services
 
-Step 2 - Only if it passes Step 1: Is this a BUSINESS or OPERATOR actively seeking to BUY, HIRE, or CONTRACT an external service or solution? If yes, extract:
+NOTE: Recruiters and HR professionals ARE valid leads if they are seeking to BUY a tool, platform, agency, or service (e.g. "looking for an ATS", "need a sourcing agency", "which recruitment tool do you recommend"). Only reject if they are purely posting a job listing or searching for candidates with no service procurement intent.
+
+Step 2 - Only if it passes Step 1: Is this a BUSINESS, OPERATOR, or PROFESSIONAL actively seeking to BUY, HIRE, or CONTRACT an external service or solution? If yes, extract:
 - category: use the hint if provided, else infer (e.g. "AI Automation", "Marketing", "Aerospace & Defense")
 - intent_score: integer 0-100
 - urgency: "High", "Medium", or "Low"
