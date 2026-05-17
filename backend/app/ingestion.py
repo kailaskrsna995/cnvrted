@@ -68,6 +68,23 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     print(f"[Apify] dataset={dataset_id} items_status={items_resp.status_code} count={len(items_resp.json()) if items_resp.status_code == 200 else 'err'}")
     return items_resp.json() if items_resp.status_code == 200 else []
 
+# Posts containing these phrases are almost never buyers — skip before LLM
+JOB_SEEKER_SIGNALS = [
+    "open to work", "open to opportunities", "looking for a job",
+    "seeking a role", "hire me", "my resume", "i am available",
+    "i'm available", "job search", "actively looking",
+]
+
+# Posts must contain at least one of these to be worth scoring
+BUYING_SIGNALS = [
+    "looking for", "need a", "need an", "we need", "searching for",
+    "recommend", "anyone know", "help with", "seeking a vendor",
+    "seeking a partner", "looking to hire", "want to hire",
+    "budget", "agency", "contractor", "outsource", "freelancer",
+    "platform", "tool", "solution", "service provider",
+]
+
+
 def _is_english(text: str) -> bool:
     letters = [c for c in text if c.isalpha()]
     if not letters:
@@ -75,15 +92,25 @@ def _is_english(text: str) -> bool:
     return sum(1 for c in letters if ord(c) < 128) / len(letters) > 0.8
 
 
+def _has_buying_signal(text: str) -> bool:
+    lower = text.lower()
+    if any(sig in lower for sig in JOB_SEEKER_SIGNALS):
+        return False
+    return any(sig in lower for sig in BUYING_SIGNALS)
+
+
 def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
     results = []
     for post in posts:
         try:
             text = post.get("text", "")
-            if not text or len(text) < 30:
+            if not text or len(text) < 50:
                 continue
             if not _is_english(text):
-                print(f"[Filter] Non-English post skipped: {text[:60]}")
+                print(f"[Filter] Non-English: {text[:60]}")
+                continue
+            if not _has_buying_signal(text):
+                print(f"[Filter] No buying signal: {text[:60]}")
                 continue
             author_data = post.get("author", {})
             first = author_data.get("firstName", "")
