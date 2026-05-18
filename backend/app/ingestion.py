@@ -130,6 +130,25 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
             if category and category != "Custom":
                 scored["category"] = category
 
+            # Extract posted_at — Apify actor field name varies
+            raw_date = (
+                post.get("postedAt") or
+                post.get("posted_at") or
+                post.get("date") or
+                post.get("publishedAt") or
+                post.get("createdAt")
+            )
+            posted_at = None
+            if raw_date:
+                try:
+                    from datetime import datetime as _dt
+                    if isinstance(raw_date, (int, float)):
+                        posted_at = _dt.utcfromtimestamp(raw_date / 1000).isoformat()
+                    else:
+                        posted_at = str(raw_date)
+                except Exception:
+                    posted_at = None
+
             lead_id = generate_lead_id(url, text, author)
             lead = {
                 "lead_id": lead_id,
@@ -148,7 +167,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
                 "contact_phone": scored.get("contact_phone", ""),
                 "contact_linkedin": f"https://www.linkedin.com/in/{profile_id}" if profile_id else "",
                 "source_url": url,
-                "posted_at": None,
+                "posted_at": posted_at,
                 "user_id": user_id,
             }
             supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()

@@ -22,6 +22,7 @@ type Lead = {
   contact_phone: string
   contact_linkedin: string
   ingested_at: string
+  posted_at: string | null
 }
 
 type ActiveSearch = { domain: string; keywords: string[] }
@@ -42,6 +43,11 @@ function formatDate(iso: string) {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function isOlderThan24h(iso: string | null): boolean {
+  if (!iso) return false
+  return (Date.now() - new Date(iso).getTime()) > 24 * 60 * 60 * 1000
 }
 
 function formatCountdown(secs: number) {
@@ -624,6 +630,12 @@ export default function Dashboard() {
             </div>
           )}
 
+          {leads.length > 0 && leads.every(l => isOlderThan24h(l.posted_at)) && (
+            <div className="max-w-4xl mb-4 px-4 py-2.5 border border-amber-200 bg-amber-50 font-mono-custom text-xs text-amber-600 uppercase tracking-widest">
+              No recent activity — showing older results
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 max-w-4xl">
             {leads.map(lead => (
               <div key={lead.id} className="bg-white border border-black/10 p-6 hover:border-black/30 hover:shadow-md transition">
@@ -633,7 +645,12 @@ export default function Dashboard() {
                       {lead.author?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div>
-                      <p className="font-canela text-lg font-medium text-black leading-tight">{lead.author}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-canela text-lg font-medium text-black leading-tight">{lead.author}</p>
+                        {isOlderThan24h(lead.posted_at) && (
+                          <span className="font-mono-custom text-xs text-amber-500 border border-amber-200 px-1.5 py-0.5 leading-none">Older Post</span>
+                        )}
+                      </div>
                       {lead.profession && <p className="font-mono-custom text-xs text-gray-500 mt-0.5">{lead.profession}</p>}
                       {lead.domain && <p className="font-mono-custom text-xs text-gray-400">{lead.domain}</p>}
                     </div>
