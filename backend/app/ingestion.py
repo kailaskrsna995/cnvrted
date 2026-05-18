@@ -75,6 +75,15 @@ JOB_SEEKER_SIGNALS = [
     "i'm available", "job search", "actively looking",
 ]
 
+# Sellers promoting their own services — not buyers
+SELLER_SIGNALS = [
+    "my agency", "our agency", "i built", "i created", "i developed",
+    "we specialize in", "we offer", "i offer", "dm me", "reach out to me",
+    "check out my", "here's how i", "i helped a client", "case study",
+    "book a call", "schedule a call", "free consultation", "link in bio",
+    "i specialize in", "our team offers", "we deliver", "our service",
+]
+
 # Posts must contain at least one of these to be worth scoring
 BUYING_SIGNALS = [
     "looking for", "need a", "need an", "we need", "searching for",
@@ -95,6 +104,8 @@ def _is_english(text: str) -> bool:
 def _has_buying_signal(text: str) -> bool:
     lower = text.lower()
     if any(sig in lower for sig in JOB_SEEKER_SIGNALS):
+        return False
+    if any(sig in lower for sig in SELLER_SIGNALS):
         return False
     return any(sig in lower for sig in BUYING_SIGNALS)
 

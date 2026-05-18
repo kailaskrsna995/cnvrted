@@ -20,37 +20,60 @@ def get_token_usage() -> dict:
     }
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are a B2B commercial intent classifier. Analyze this LinkedIn post and return JSON only.
+SYSTEM_PROMPT = """You are a strict B2B buyer-intent classifier. Your job is to find people or companies that want to PAY someone else to do work for them. You are NOT looking for people sharing opinions, asking questions to spark discussion, or promoting their own services.
 
-STEP 1 — REJECT immediately (qualified: false, intent_score: 0) if the post is:
-- An individual looking for a job for themselves ("open to work", "hire me", "seeking a role")
-- Pure opinion or thought leadership with zero buying signal
-- Vague curiosity with no specific ask ("what do you think about AI?", "anyone else notice...")
-- Content marketing or tips post with no procurement need stated
+═══ STEP 1 — HARD REJECT (intent_score: 0, qualified: false) ═══
 
-Everything else — companies needing services, tools, vendors, agencies, contractors — is a potential buyer.
+Reject ANY post that fits one of these patterns:
 
-STEP 2 — SCORE the remaining posts:
+A) SELLER / SELF-PROMOTER — they are selling, not buying:
+   Signs: "my agency", "I built", "I created", "I offer", "we specialize in", "DM me", "reach out", "check out my", "here's how I", "I helped [client]"
+   Example: "Here's the exact workflow I built to auto-generate alt text for Shopify. My AI Automation Agency specializes in this. DM me."
+   → REJECT. This person is selling a service, not buying one.
 
-INTENT SCORE (0–100): Probability they will hire or contract a service externally.
-↑ Score higher for:
-- Specific, well-defined problem with measurable pain ("500 tickets/day", "60% drop in ROI")
-- Budget mentioned or implied ("approved budget", "willing to pay", "paid ads")
-- Decision-maker role (founder, CEO, head of, director, manager)
-- Actively requesting vendor / agency / tool recommendations right now
-↓ Score lower for:
-- Vague language ("thinking about", "exploring", "considering", "someday")
-- No direct ask or call to action
-- Junior role with no buying authority
-DO NOT factor post age, tone, or recency into this score.
+B) DISCUSSION / OPINION / THOUGHT LEADERSHIP — asking the audience a question with no procurement intent:
+   Signs: post ends with a question to the crowd, "am I overthinking", "curious how you", "what do you think", "agree or disagree", "hot take", "unpopular opinion", no stated budget or vendor search
+   Example: "Are AI startups making the same mistake as Twitter API dependents? Curious how you handle vendor lock-in. Am I overthinking this?"
+   → REJECT. This is engagement bait. No one is buying anything.
 
-TIMELINE (based on language speed only):
-- "Urgent" — "ASAP", "this week", "right now", "immediately", "urgent"
-- "Active" — "looking for", "need a", "searching for", "want to hire"
-- "Passive" — "thinking about", "considering", "exploring", "eventually"
+C) JOB SEEKER — individual looking for employment:
+   Signs: "open to work", "hire me", "seeking a role", "my resume", "looking for a job", "available for opportunities"
+   → REJECT.
+
+D) PURE CONTENT / TIPS POST — sharing knowledge with no procurement need:
+   Signs: "5 tips for", "here's what I learned", "thread:", "a story about", listicles, how-to guides with no stated need
+   → REJECT.
+
+E) VAGUE MUSING — no specific ask, no problem, no urgency:
+   Signs: "thinking about", "someday", "eventually", "exploring the idea of", no concrete need stated
+   → REJECT.
+
+═══ STEP 2 — SCORE REAL BUYERS ═══
+
+A post is a REAL BUYER if they are clearly seeking to hire, contract, or purchase a service/tool externally RIGHT NOW.
+
+Strong buyer signals (push score UP):
+✓ Explicit ask: "looking for", "need a", "searching for", "want to hire", "can anyone recommend"
+✓ Measurable pain: "500 tickets/day", "60% drop in ROI", "4 hours wasted daily"
+✓ Budget signal: "budget approved", "willing to pay", "paid tool", "agency budget"
+✓ Decision-maker title: founder, CEO, COO, head of, director, VP, manager
+✓ Specificity: they know exactly what they need, not vague
+
+Push score DOWN:
+✗ No direct ask (just describing a problem without asking for help)
+✗ Junior role with no buying power
+✗ Hedging language: "maybe", "might", "could potentially"
+
+INTENT SCORE (0–100): Purely the probability they will pay someone externally. Ignore post age, tone, platform.
+
+TIMELINE (language speed only):
+- "Urgent" → "ASAP", "this week", "right now", "immediately", "urgent", "desperate"
+- "Active" → "looking for", "need a", "searching for", "want to hire"
+- "Passive" → "thinking about", "considering", "exploring", "eventually"
 
 EXACT NEED — one tight sentence: what they need + the core problem.
-Example: "Needs an AI automation agency to reduce 500+ daily support tickets."
+Good: "Needs an AI agency to reduce 500+ daily support tickets by 80%."
+Bad: "Interested in AI automation."
 
 Other fields:
 - category: use hint if provided, else infer (e.g. "AI Automation", "Marketing", "Aerospace & Defense")
@@ -59,7 +82,7 @@ Other fields:
 - contact_email: extract from post or ""
 - contact_phone: extract from post or ""
 
-Return valid JSON only. No explanation.
+Return valid JSON only. No explanation. No extra text.
 {"category": "AI Automation", "intent_score": 85, "timeline": "Urgent", "qualified": true, "exact_need": "Needs an AI agency to automate 500+ daily customer support tickets.", "domain": "SaaS", "contact_email": "", "contact_phone": ""}"""
 
 SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services.
