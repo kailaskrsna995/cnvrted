@@ -10,6 +10,9 @@ import random
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
+# Global lock — prevents concurrent scans from stacking up
+_scan_in_progress = False
+
 
 class IngestRequest(BaseModel):
     user_id: Optional[str] = None
@@ -51,16 +54,29 @@ async def seed_mock_leads():
         inserted.append(lead)
     return {"seeded": len(inserted)}
 
+async def _run_and_unlock(keywords, domain, user_id):
+    global _scan_in_progress
+    try:
+        await run_ingestion(keywords, domain, user_id)
+    finally:
+        _scan_in_progress = False
+
 @router.post("/")
 async def trigger_ingestion(
     background_tasks: BackgroundTasks,
     req: IngestRequest = Body(default=IngestRequest())
 ):
+    global _scan_in_progress
+    if _scan_in_progress:
+        return {"status": "scan_in_progress", "message": "A scan is already running"}
+
+    _scan_in_progress = True
+
     # TODO: re-enable 30-min cooldown before production deploy
     if req.user_id:
         supabase.table("users").update({
             "last_scanned_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", req.user_id).execute()
 
-    background_tasks.add_task(run_ingestion, req.keywords, req.domain, req.user_id)
+    background_tasks.add_task(_run_and_unlock, req.keywords, req.domain, req.user_id)
     return {"status": "Scan started in background"}
