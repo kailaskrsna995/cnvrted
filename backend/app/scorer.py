@@ -154,7 +154,7 @@ def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
 
 
 def map_query_to_search(raw_query: str) -> dict:
-    raw = _call_llm(SEARCH_PROMPT, raw_query, temperature=0.3)
+    raw = _call_llm(SEARCH_PROMPT, raw_query, temperature=0.0)
     if not raw:
         return {"domain": raw_query.title(), "keywords": [raw_query]}
     print(f"[Search] raw={raw}")

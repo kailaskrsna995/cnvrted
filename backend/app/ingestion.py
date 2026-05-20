@@ -206,6 +206,7 @@ async def run_ingestion(
     else:
         keyword_map = [(cat, kw) for cat, kws in KEYWORDS.items() for kw in kws]
 
+    print(f"[Ingestion] Keywords to scan: {[kw for _, kw in keyword_map]}")
     results = []
     async with httpx.AsyncClient(timeout=300) as client:
         # All keywords fire in parallel — cuts 3-4 min sequential to ~40s
