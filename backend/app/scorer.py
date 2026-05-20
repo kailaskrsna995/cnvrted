@@ -87,19 +87,20 @@ Return valid JSON only. No explanation. No extra text.
 
 SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services.
 
-IMPORTANT: Buyers don't post the service name — they post their PROBLEM. Search for pain points + need signals.
+Buyers post their PROBLEM or ask their network for recommendations. Search for pain points + recommendation requests.
 
 Good keyword patterns:
-- "[problem] help recommend" e.g. "automate workflow help recommend"
-- "looking for [specific role/tool]" e.g. "looking for chatbot developer"
-- "[pain point] need help" e.g. "manual reporting need help"
-- "anyone built [specific thing]" e.g. "anyone built automation CRM"
+- "recommend [specific freelancer/agency type]" e.g. "recommend freelance developer"
+- "need help [specific task]" e.g. "need help building app"
+- "anyone know [service]" e.g. "anyone know good developer"
+- "looking for freelancer [task]" e.g. "looking for freelancer build website"
 
 RULES:
-- Use PAIN POINT language, NOT service category names like "AI automation" or "digital marketing"
-- Avoid broad topic terms — they attract thought leaders, not buyers
+- NEVER use "hiring" or "hire" — returns job postings, not buyers seeking freelancers
+- NEVER use broad topic terms — attract thought leaders not buyers
+- Use "freelancer", "agency", "contractor", "outsource" — signals someone buying a service
 - Keep phrases 3-5 words
-- Think: what would a frustrated business owner type in a post?
+- Think: frustrated business owner asking their LinkedIn network for a recommendation
 
 Given a query, generate 4 question-style buyer-intent keyword phrases for that exact domain.
 
