@@ -30,7 +30,7 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     run_resp = await client.post(
         f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
-        json={"urls": [build_search_url(keyword)], "limitPerSource": 20, "deepScrape": True, "rawData": False}
+        json={"urls": [build_search_url(keyword)], "limitPerSource": 40, "deepScrape": True, "rawData": False}
     )
     if run_resp.status_code not in (200, 201):
         print(f"[Apify] Failed to start run for '{keyword}': {run_resp.text[:200]}")
@@ -77,11 +77,11 @@ JOB_SEEKER_SIGNALS = [
 
 # Sellers promoting their own services — not buyers
 SELLER_SIGNALS = [
-    "my agency", "our agency", "i built", "i created", "i developed",
-    "we specialize in", "we offer", "i offer", "dm me", "reach out to me",
-    "check out my", "here's how i", "i helped a client", "case study",
+    "my agency", "our agency", "i built this", "i created this",
+    "we specialize in", "i offer", "dm me", "reach out to me",
+    "check out my", "here's how i", "i helped a client",
     "book a call", "schedule a call", "free consultation", "link in bio",
-    "i specialize in", "our team offers", "we deliver", "our service",
+    "i specialize in", "our team offers",
 ]
 
 # Posts must contain at least one of these to be worth scoring
