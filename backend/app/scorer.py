@@ -98,11 +98,11 @@ Good keyword patterns:
 - "looking for freelancer [task]" e.g. "looking for freelancer build website"
 
 RULES:
-- NEVER use "hiring" or "hire" — returns job postings, not buyers seeking freelancers
-- NEVER use broad topic terms — attract thought leaders not buyers
+- AVOID "#hiring", "open position", "job opening" — returns HR/recruiter posts
+- USE "looking to hire freelancer", "want to hire contractor" — these are buyers
 - Use "freelancer", "agency", "contractor", "outsource" — signals someone buying a service
 - Keep phrases 3-5 words
-- Think: frustrated business owner asking their LinkedIn network for a recommendation
+- Think: business owner or creative professional needing to pay someone for a specific project
 
 Given a query, generate 4 question-style buyer-intent keyword phrases for that exact domain.
 

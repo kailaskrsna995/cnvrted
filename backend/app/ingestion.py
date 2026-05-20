@@ -96,7 +96,7 @@ BUYING_SIGNALS = [
     "looking for", "need a", "need an", "we need", "searching for",
     "can anyone recommend", "anyone recommend", "anyone know a good",
     "help with", "seeking a vendor", "seeking a partner",
-    "looking to hire", "want to hire", "looking to outsource",
+    "looking to hire", "want to hire", "looking to outsource", "need to hire",
     "budget", "agency", "contractor", "outsource", "freelancer",
     "service provider", "need help finding", "who do you use",
 ]
