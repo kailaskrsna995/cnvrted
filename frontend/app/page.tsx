@@ -87,8 +87,8 @@ function PreferencesScreen({ userId, onComplete }: {
           company_size: companySize,
         })
       })
-      onComplete(serviceOffering.trim(), selectedIndustries)
     } catch {}
+    onComplete(serviceOffering.trim(), selectedIndustries)
     setLoading(false)
   }
 
@@ -571,11 +571,12 @@ export default function Dashboard() {
       setUserPosition(data.profession || '')
       localStorage.setItem('cnvrted_user_name', displayName)
       if (data.username) localStorage.setItem('cnvrted_username', data.username)
-      if (data.last_scanned_at) {
-        const elapsed = (Date.now() - new Date(data.last_scanned_at).getTime()) / 1000
-        const remaining = Math.max(0, 1800 - elapsed)
-        setCooldownRemaining(Math.floor(remaining))
-      }
+      // TODO: re-enable cooldown restore before production deploy
+      // if (data.last_scanned_at) {
+      //   const elapsed = (Date.now() - new Date(data.last_scanned_at).getTime()) / 1000
+      //   const remaining = Math.max(0, 1800 - elapsed)
+      //   setCooldownRemaining(Math.floor(remaining))
+      // }
       const hasPrefs = !!(data.service_offering?.trim())
       setPreferencesSet(hasPrefs)
       if (hasPrefs) {
@@ -666,11 +667,12 @@ export default function Dashboard() {
         body: JSON.stringify(body)
       })
       const data = await res.json()
-      if (data.status === 'cooldown') {
-        setCooldownRemaining(data.remaining_seconds)
-      } else {
-        setCooldownRemaining(1800)
-      }
+      // TODO: re-enable 30-min cooldown before production deploy
+      // if (data.status === 'cooldown') {
+      //   setCooldownRemaining(data.remaining_seconds)
+      // } else {
+      //   setCooldownRemaining(1800)
+      // }
     } catch {}
     setLoading(false)
   }

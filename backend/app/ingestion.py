@@ -8,16 +8,16 @@ from typing import Optional, List
 
 KEYWORDS = {
     "AI Automation": [
-        "looking for AI automation agency",
-        "need workflow automation help",
-        "looking for AI integration partner",
-        "need to automate business processes",
+        "need automation help",
+        "looking for AI agency",
+        "automate our workflow",
+        "recommend automation tool",
     ],
     "Marketing": [
-        "looking for marketing agency",
-        "need paid ads expert",
-        "looking for social media agency",
-        "need help with digital marketing",
+        "need marketing agency",
+        "looking for ads expert",
+        "social media help needed",
+        "recommend digital marketing",
     ]
 }
 
@@ -29,7 +29,8 @@ def generate_lead_id(url: str, text: str, author: str) -> str:
 
 def build_search_url(keyword: str) -> str:
     from urllib.parse import quote
-    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-24h%22&keywords={quote(keyword)}&origin=FACETED_SEARCH"
+    # TODO: change past-week back to past-24h for production
+    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords={quote(keyword)}&origin=FACETED_SEARCH"
 
 async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     # Step 1: start run

@@ -92,10 +92,11 @@ Target posts that sound like: "we need a vendor for X", "looking for a partner t
 RULES:
 - Keywords must be tightly scoped to the queried domain — do NOT drift into adjacent industries
 - AVOID keywords that attract: job seekers, open-to-work posts, recruiters, talent acquisition
-- Each keyword should be a natural buyer-intent phrase, not a single word
+- Each keyword must be SHORT (2-5 words max) — long phrases get zero results on LinkedIn
 - Think like a buyer in that specific niche posting on LinkedIn
+- Use natural short phrases that a decision-maker would actually type in a post
 
-Given a query, generate 4 buyer-intent keyword phrases for that exact domain.
+Given a query, generate 4 short buyer-intent keyword phrases for that exact domain.
 
 Return JSON only. No explanation.
 {"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
@@ -103,7 +104,9 @@ Return JSON only. No explanation.
 # ── LLM caller ────────────────────────────────────────────────────────────────
 def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_tokens: int = 256, model: str = "claude-haiku-4-5-20251001") -> str:
     global _session_input_tokens, _session_output_tokens
-    delays = [2, 4, 8]
+    # TODO: re-enable rate limiting before production deploy
+    # delays = [2, 4, 8]
+    delays = [0, 0, 0]
     for attempt, delay in enumerate(delays, 1):
         try:
             response = client.messages.create(
@@ -131,8 +134,6 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
             print(f"[LLM] Rate limit hit, waiting {delay}s...")
         except Exception as e:
             print(f"[LLM] Attempt {attempt} error: {e}")
-        if attempt < len(delays):
-            time.sleep(delay)
     return ""
 
 

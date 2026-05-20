@@ -56,14 +56,8 @@ async def trigger_ingestion(
     background_tasks: BackgroundTasks,
     req: IngestRequest = Body(default=IngestRequest())
 ):
+    # TODO: re-enable 30-min cooldown before production deploy
     if req.user_id:
-        user_result = supabase.table("users").select("last_scanned_at").eq("id", req.user_id).execute()
-        if user_result.data and user_result.data[0].get("last_scanned_at"):
-            last_str = user_result.data[0]["last_scanned_at"]
-            last = datetime.fromisoformat(last_str.replace("Z", "+00:00"))
-            elapsed = (datetime.now(timezone.utc) - last).total_seconds()
-            if elapsed < 1800:
-                return {"status": "cooldown", "remaining_seconds": int(1800 - elapsed)}
         supabase.table("users").update({
             "last_scanned_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", req.user_id).execute()
