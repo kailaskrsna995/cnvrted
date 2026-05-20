@@ -118,7 +118,11 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
             _session_output_tokens += response.usage.output_tokens
             usage = get_token_usage()
             print(f"[Tokens] in={response.usage.input_tokens} out={response.usage.output_tokens} | session: in={usage['input_tokens']} out={usage['output_tokens']} cost≈${usage['estimated_cost_usd']}")
-            # Validate JSON before returning
+            # Extract JSON even if model wraps it in extra text
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                raw = raw[start:end+1]
             json.loads(raw)
             return raw
         except json.JSONDecodeError:
