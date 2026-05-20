@@ -637,9 +637,9 @@ export default function Dashboard() {
   const triggerIngest = async () => {
     if (cooldownRemaining > 0 || loading) return
 
-    // Auto-submit search if user typed but didn't hit →
-    let search = activeSearch
-    if (!search && searchQuery.trim()) {
+    // Always re-resolve from current search box — never use stale activeSearch
+    let search: ActiveSearch | null = null
+    if (searchQuery.trim()) {
       setSearchLoading(true)
       try {
         const res = await fetch(`${API}/search/`, {
@@ -753,7 +753,7 @@ export default function Dashboard() {
           <input
             type="text"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => { setSearchQuery(e.target.value); setActiveSearch(null) }}
             placeholder="e.g. filmmaker"
             className="font-mono-custom w-full border border-black/20 px-2 py-1.5 text-xs outline-none focus:border-black transition placeholder:text-gray-300"
           />

@@ -8,16 +8,16 @@ from typing import Optional, List
 
 KEYWORDS = {
     "AI Automation": [
-        "need automation help",
-        "looking for AI agency",
-        "automate our workflow",
-        "recommend automation tool",
+        "recommend chatbot developer",
+        "automate our workflow help",
+        "looking for developer automate",
+        "anyone built automation for",
     ],
     "Marketing": [
-        "need marketing agency",
-        "looking for ads expert",
-        "social media help needed",
-        "recommend digital marketing",
+        "recommend paid ads agency",
+        "our ads not performing",
+        "looking for Facebook ads help",
+        "need marketing agency recommend",
     ]
 }
 

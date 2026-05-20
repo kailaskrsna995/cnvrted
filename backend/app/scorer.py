@@ -87,16 +87,21 @@ Return valid JSON only. No explanation. No extra text.
 
 SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services.
 
-Target posts that sound like: "we need a vendor for X", "looking for a partner to help with Y", "can anyone recommend a service for Z", "our company needs help with".
+IMPORTANT: Buyers don't post the service name — they post their PROBLEM. Search for pain points + need signals.
+
+Good keyword patterns:
+- "[problem] help recommend" e.g. "automate workflow help recommend"
+- "looking for [specific role/tool]" e.g. "looking for chatbot developer"
+- "[pain point] need help" e.g. "manual reporting need help"
+- "anyone built [specific thing]" e.g. "anyone built automation CRM"
 
 RULES:
-- Keywords must be tightly scoped to the queried domain — do NOT drift into adjacent industries
-- AVOID keywords that attract: job seekers, open-to-work posts, recruiters, talent acquisition
-- Each keyword must be SHORT (2-5 words max) — long phrases get zero results on LinkedIn
-- Think like a buyer in that specific niche posting on LinkedIn
-- Use natural short phrases that a decision-maker would actually type in a post
+- Use PAIN POINT language, NOT service category names like "AI automation" or "digital marketing"
+- Avoid broad topic terms — they attract thought leaders, not buyers
+- Keep phrases 3-5 words
+- Think: what would a frustrated business owner type in a post?
 
-Given a query, generate 4 short buyer-intent keyword phrases for that exact domain.
+Given a query, generate 4 question-style buyer-intent keyword phrases for that exact domain.
 
 Return JSON only. No explanation.
 {"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
