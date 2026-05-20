@@ -11,8 +11,8 @@ _session_input_tokens = 0
 _session_output_tokens = 0
 
 def get_token_usage() -> dict:
-    cost_input  = (_session_input_tokens  / 1_000_000) * 1.00   # $1/1M input
-    cost_output = (_session_output_tokens / 1_000_000) * 5.00   # $5/1M output
+    cost_input  = (_session_input_tokens  / 1_000_000) * 3.00   # $3/1M input (Sonnet)
+    cost_output = (_session_output_tokens / 1_000_000) * 15.00  # $15/1M output (Sonnet)
     return {
         "input_tokens":  _session_input_tokens,
         "output_tokens": _session_output_tokens,
@@ -139,7 +139,7 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
 # ── Public functions ──────────────────────────────────────────────────────────
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     hint = f"\nFor this post, prefer category: \"{category_hint}\" if it fits." if category_hint else ""
-    raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-haiku-4-5-20251001")
+    raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-3-5-sonnet-20241022")
     if not raw:
         print(f"[Scorer] All retries failed for: {post_text[:60]}")
         return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False}

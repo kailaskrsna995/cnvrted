@@ -705,10 +705,21 @@ export default function Dashboard() {
     return (
       <PreferencesScreen
         userId={userId}
-        onComplete={(serviceOffering, industries) => {
+        onComplete={async (serviceOffering, industries) => {
           setPreferencesSet(true)
           const suggestions = [serviceOffering, ...industries].filter(Boolean)
           setSuggestedDomains(suggestions.slice(0, 5))
+          // Pre-resolve service offering through LLM keyword generator
+          try {
+            const res = await fetch(`${API}/search/`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ raw_query: serviceOffering })
+            })
+            const data = await res.json()
+            setActiveSearch(data)
+            setSearchQuery(serviceOffering)
+          } catch {}
         }}
       />
     )
