@@ -56,6 +56,162 @@ function formatCountdown(secs: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+const INDUSTRIES = ['E-commerce', 'SaaS / Tech', 'Healthcare', 'Finance', 'Real Estate', 'Logistics', 'Education', 'Other']
+const SIZES = ['SMB (1–50)', 'Mid-market (50–500)', 'Enterprise (500+)', 'All sizes']
+
+function PreferencesScreen({ userId, onComplete }: {
+  userId: string
+  onComplete: (serviceOffering: string) => void
+}) {
+  const [serviceOffering, setServiceOffering] = useState('')
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
+  const [companySize, setCompanySize] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const toggleIndustry = (ind: string) => {
+    setSelectedIndustries(prev =>
+      prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind]
+    )
+  }
+
+  const handleSubmit = async () => {
+    if (!serviceOffering.trim() || !companySize || loading) return
+    setLoading(true)
+    try {
+      await fetch(`${API}/users/${userId}/preferences/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_offering: serviceOffering.trim(),
+          target_industries: selectedIndustries,
+          company_size: companySize,
+        })
+      })
+      onComplete(serviceOffering.trim())
+    } catch {}
+    setLoading(false)
+  }
+
+  return (
+    <div className="h-screen bg-white flex flex-col items-center justify-center px-8">
+      <div className="w-full max-w-lg">
+        <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black block mb-10">cnvrted</span>
+        <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">One-time setup</p>
+        <h1 className="font-canela text-4xl font-light text-black mb-10">Personalise your feed.</h1>
+
+        <div className="mb-8">
+          <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-3">
+            What service do you offer?
+          </label>
+          <input
+            type="text"
+            value={serviceOffering}
+            onChange={e => setServiceOffering(e.target.value)}
+            placeholder="e.g. AI automation agency, Facebook ads, SaaS development"
+            autoFocus
+            className="font-canela text-base w-full border border-black/20 bg-white px-3 py-2.5 outline-none focus:border-black transition-all duration-150"
+          />
+        </div>
+
+        <div className="mb-8">
+          <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-3">
+            Who are your ideal clients? <span className="text-gray-300 normal-case">(select all that apply)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {INDUSTRIES.map(ind => (
+              <button
+                key={ind}
+                onClick={() => toggleIndustry(ind)}
+                className={`font-mono-custom text-xs px-3 py-1.5 border transition-all duration-150 uppercase tracking-wide
+                  ${selectedIndustries.includes(ind)
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}
+              >
+                {ind}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-10">
+          <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-3">
+            What size companies do you target?
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {SIZES.map(size => (
+              <button
+                key={size}
+                onClick={() => setCompanySize(size)}
+                className={`font-mono-custom text-xs px-3 py-1.5 border transition-all duration-150 uppercase tracking-wide
+                  ${companySize === size
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={!serviceOffering.trim() || !companySize || loading}
+          className="font-mono-custom w-full border border-black bg-black text-white text-xs px-3 py-2.5 uppercase tracking-widest hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-md transition-all duration-150 disabled:opacity-40 disabled:translate-y-0 disabled:shadow-none"
+        >
+          {loading ? 'Saving...' : 'Build my feed →'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white w-full max-w-2xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-black/10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 border border-black/20 flex items-center justify-center font-canela text-base font-medium shrink-0">
+              {lead.author?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div>
+              <p className="font-canela text-base font-medium text-black">{lead.author}</p>
+              {lead.profession && <p className="font-mono-custom text-xs text-gray-400 mt-0.5">{lead.profession}</p>}
+            </div>
+          </div>
+          <button onClick={onClose} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">✕</button>
+        </div>
+
+        <div className="px-6 py-5 max-h-96 overflow-y-auto">
+          {lead.exact_need && (
+            <div className="border-l-2 border-black pl-3 mb-4">
+              <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Looking for</p>
+              <p className="font-canela text-base text-black">{lead.exact_need}</p>
+            </div>
+          )}
+          <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{lead.post_text}</p>
+        </div>
+
+        <div className="px-6 py-4 border-t border-black/10 flex justify-between items-center">
+          <span className="font-mono-custom text-xs text-gray-400">{formatDate(lead.ingested_at)}</span>
+          {lead.source_url ? (
+            <a
+              href={lead.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono-custom text-xs border border-black bg-black text-white px-4 py-2 hover:bg-gray-900 transition"
+            >
+              Open on LinkedIn ↗
+            </a>
+          ) : (
+            <span className="font-mono-custom text-xs text-gray-300">No source URL</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function OnboardingScreen({ onComplete }: { onComplete: (userId: string, displayName: string) => void }) {
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
@@ -300,6 +456,17 @@ function ProfileModal({ userName, userPosition, savedLeadIds, onClose }: {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="mb-5 pb-5 border-b border-black/10">
+            <div className="flex justify-between items-center mb-2">
+              <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">Credits</p>
+              <p className="font-mono-custom text-xs text-gray-400">0 / 100</p>
+            </div>
+            <div className="w-full h-1 bg-gray-100">
+              <div className="h-1 bg-black transition-all" style={{ width: '0%' }} />
+            </div>
+            <p className="font-mono-custom text-xs text-gray-300 mt-1.5">Payments coming soon</p>
+          </div>
+
           <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-4">
             Saved — {savedLeadIds.size}
           </p>
@@ -346,6 +513,9 @@ export default function Dashboard() {
   const [activeSearch, setActiveSearch] = useState<ActiveSearch | null>(null)
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
+  const [pendingAutoScan, setPendingAutoScan] = useState(false)
+  const [previewLead, setPreviewLead] = useState<Lead | null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('cnvrted_user_id')
@@ -382,6 +552,13 @@ export default function Dashboard() {
   }, [savedLeadIds])
 
   useEffect(() => {
+    if (pendingAutoScan && searchQuery && cooldownRemaining === 0 && !loading) {
+      setPendingAutoScan(false)
+      triggerIngest()
+    }
+  }, [pendingAutoScan, searchQuery])
+
+  useEffect(() => {
     const channel = supabase.channel('leads-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => {
         fetchLeads(category, userId)
@@ -406,6 +583,7 @@ export default function Dashboard() {
         const remaining = Math.max(0, 1800 - elapsed)
         setCooldownRemaining(Math.floor(remaining))
       }
+      setPreferencesSet(!!(data.service_offering?.trim()))
     } catch {}
   }
 
@@ -522,7 +700,20 @@ export default function Dashboard() {
 
   if (!ready) return null
   if (!userId) {
-    return <OnboardingScreen onComplete={(id, name) => { setUserId(id); setUserName(name); fetchSaved(id) }} />
+    return <OnboardingScreen onComplete={(id, name) => { setUserId(id); setUserName(name); fetchSaved(id); setPreferencesSet(false) }} />
+  }
+  if (preferencesSet === null) return null
+  if (!preferencesSet) {
+    return (
+      <PreferencesScreen
+        userId={userId}
+        onComplete={(serviceOffering) => {
+          setPreferencesSet(true)
+          setSearchQuery(serviceOffering)
+          setPendingAutoScan(true)
+        }}
+      />
+    )
   }
 
   const uniqueCategories = ['All', ...Object.keys(stats).filter(k => k && k !== 'None'), 'Saved']
@@ -536,6 +727,9 @@ export default function Dashboard() {
           savedLeadIds={savedLeadIds}
           onClose={() => setProfileOpen(false)}
         />
+      )}
+      {previewLead && (
+        <PostPreviewModal lead={previewLead} onClose={() => setPreviewLead(null)} />
       )}
 
       {/* Sidebar */}
@@ -679,16 +873,30 @@ export default function Dashboard() {
 
                 <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">{lead.post_text}</p>
 
-                <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
-                  <span className="font-mono-custom text-xs text-gray-400">✉ {lead.contact_email || 'Unavailable'}</span>
-                  <span className="font-mono-custom text-xs text-gray-400">📞 {lead.contact_phone || 'Unavailable'}</span>
+                <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
+                  {lead.contact_email ? (
+                    <span className="font-mono-custom text-xs text-gray-400">✉ {lead.contact_email}</span>
+                  ) : (
+                    <button className="font-mono-custom text-xs border border-black/15 px-2.5 py-1 text-gray-500 hover:border-black/40 transition">
+                      🔒 Unlock Email
+                    </button>
+                  )}
+                  {lead.contact_phone ? (
+                    <span className="font-mono-custom text-xs text-gray-400">📞 {lead.contact_phone}</span>
+                  ) : (
+                    <button className="font-mono-custom text-xs border border-black/15 px-2.5 py-1 text-gray-500 hover:border-black/40 transition">
+                      🔒 Unlock Phone
+                    </button>
+                  )}
                   {lead.contact_linkedin
                     ? <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer" className="font-mono-custom text-xs text-black underline underline-offset-2">LinkedIn ↗</a>
                     : <span className="font-mono-custom text-xs text-gray-300">No LinkedIn</span>
                   }
                   <span className="font-mono-custom text-xs text-gray-300 ml-auto">{formatDate(lead.ingested_at)}</span>
                   {lead.source_url && (
-                    <a href={lead.source_url} target="_blank" rel="noopener noreferrer" className="font-mono-custom text-xs text-gray-400 hover:text-black">View post ↗</a>
+                    <button onClick={() => setPreviewLead(lead)} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">
+                      View post ↗
+                    </button>
                   )}
                 </div>
               </div>

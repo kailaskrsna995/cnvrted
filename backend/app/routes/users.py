@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import List
 from app.database import supabase
 from app.scorer import map_query_to_search
 import hashlib
@@ -13,6 +14,12 @@ class AuthRequest(BaseModel):
     password: str
     name: str = ""
     profession: str = ""
+
+
+class PreferencesRequest(BaseModel):
+    service_offering: str = ""
+    target_industries: List[str] = []
+    company_size: str = ""
 
 
 class SearchRequest(BaseModel):
@@ -70,6 +77,16 @@ def unsave_post(user_id: str, lead_id: str):
 def get_saved_lead_ids(user_id: str):
     result = supabase.table("saved_posts").select("lead_id").eq("user_id", user_id).execute()
     return [r["lead_id"] for r in result.data]
+
+
+@users_router.patch("/{user_id}/preferences/")
+def update_preferences(user_id: str, req: PreferencesRequest):
+    supabase.table("users").update({
+        "service_offering": req.service_offering,
+        "target_industries": req.target_industries,
+        "company_size": req.company_size,
+    }).eq("id", user_id).execute()
+    return {"updated": True}
 
 
 @search_router.post("/search/")
