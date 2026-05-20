@@ -139,7 +139,7 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
 # ── Public functions ──────────────────────────────────────────────────────────
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     hint = f"\nFor this post, prefer category: \"{category_hint}\" if it fits." if category_hint else ""
-    raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-3-5-sonnet-20241022")
+    raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-sonnet-4-6")
     if not raw:
         print(f"[Scorer] All retries failed for: {post_text[:60]}")
         return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False}
