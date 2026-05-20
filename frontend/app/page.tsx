@@ -61,7 +61,7 @@ const SIZES = ['SMB (1–50)', 'Mid-market (50–500)', 'Enterprise (500+)', 'Al
 
 function PreferencesScreen({ userId, onComplete }: {
   userId: string
-  onComplete: (serviceOffering: string) => void
+  onComplete: (serviceOffering: string, industries: string[]) => void
 }) {
   const [serviceOffering, setServiceOffering] = useState('')
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
@@ -87,7 +87,7 @@ function PreferencesScreen({ userId, onComplete }: {
           company_size: companySize,
         })
       })
-      onComplete(serviceOffering.trim())
+      onComplete(serviceOffering.trim(), selectedIndustries)
     } catch {}
     setLoading(false)
   }
@@ -514,7 +514,7 @@ export default function Dashboard() {
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
   const [profileOpen, setProfileOpen] = useState(false)
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
-  const [pendingAutoScan, setPendingAutoScan] = useState(false)
+  const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
   const [previewLead, setPreviewLead] = useState<Lead | null>(null)
 
   useEffect(() => {
@@ -552,13 +552,6 @@ export default function Dashboard() {
   }, [savedLeadIds])
 
   useEffect(() => {
-    if (pendingAutoScan && searchQuery && cooldownRemaining === 0 && !loading) {
-      setPendingAutoScan(false)
-      triggerIngest()
-    }
-  }, [pendingAutoScan, searchQuery])
-
-  useEffect(() => {
     const channel = supabase.channel('leads-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => {
         fetchLeads(category, userId)
@@ -583,7 +576,12 @@ export default function Dashboard() {
         const remaining = Math.max(0, 1800 - elapsed)
         setCooldownRemaining(Math.floor(remaining))
       }
-      setPreferencesSet(!!(data.service_offering?.trim()))
+      const hasPrefs = !!(data.service_offering?.trim())
+      setPreferencesSet(hasPrefs)
+      if (hasPrefs) {
+        const suggestions = [data.service_offering, ...(data.target_industries || [])].filter(Boolean)
+        setSuggestedDomains(suggestions.slice(0, 5))
+      }
     } catch {}
   }
 
@@ -707,10 +705,10 @@ export default function Dashboard() {
     return (
       <PreferencesScreen
         userId={userId}
-        onComplete={(serviceOffering) => {
+        onComplete={(serviceOffering, industries) => {
           setPreferencesSet(true)
-          setSearchQuery(serviceOffering)
-          setPendingAutoScan(true)
+          const suggestions = [serviceOffering, ...industries].filter(Boolean)
+          setSuggestedDomains(suggestions.slice(0, 5))
         }}
       />
     )
@@ -750,6 +748,23 @@ export default function Dashboard() {
             <div className="mt-2.5 px-0.5">
               <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">Domain</p>
               <p className="font-canela text-sm text-black mt-0.5">{activeSearch.domain}</p>
+            </div>
+          )}
+          {!activeSearch && suggestedDomains.length > 0 && (
+            <div className="mt-3 px-0.5">
+              <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-2">Suggested</p>
+              <div className="flex flex-col gap-1">
+                {suggestedDomains.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setSearchQuery(d)}
+                    className={`font-mono-custom text-xs text-left px-2 py-1.5 border transition truncate
+                      ${searchQuery === d ? 'border-black bg-black text-white' : 'border-black/15 text-gray-500 hover:border-black/40 hover:text-black'}`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
