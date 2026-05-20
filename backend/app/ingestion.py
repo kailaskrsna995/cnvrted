@@ -94,10 +94,11 @@ SELLER_SIGNALS = [
 # Posts must contain at least one of these to be worth scoring
 BUYING_SIGNALS = [
     "looking for", "need a", "need an", "we need", "searching for",
-    "recommend", "anyone know", "help with", "seeking a vendor",
-    "seeking a partner", "looking to hire", "want to hire",
+    "can anyone recommend", "anyone recommend", "anyone know a good",
+    "help with", "seeking a vendor", "seeking a partner",
+    "looking to hire", "want to hire", "looking to outsource",
     "budget", "agency", "contractor", "outsource", "freelancer",
-    "platform", "tool", "solution", "service provider",
+    "service provider", "need help finding", "who do you use",
 ]
 
 

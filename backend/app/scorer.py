@@ -4,7 +4,9 @@ import json
 import time
 from typing import Optional
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+def _get_client():
+    from app.config import ANTHROPIC_API_KEY as _key
+    return anthropic.Anthropic(api_key=_key)
 
 # ── Token usage tracking ──────────────────────────────────────────────────────
 _session_input_tokens = 0
@@ -110,6 +112,7 @@ Return JSON only. No explanation.
 # ── LLM caller ────────────────────────────────────────────────────────────────
 def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_tokens: int = 256, model: str = "claude-haiku-4-5-20251001") -> str:
     global _session_input_tokens, _session_output_tokens
+    client = _get_client()
     # TODO: re-enable rate limiting before production deploy
     # delays = [2, 4, 8]
     delays = [0, 0, 0]
