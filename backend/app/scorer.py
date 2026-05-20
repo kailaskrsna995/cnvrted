@@ -101,13 +101,13 @@ Return JSON only. No explanation.
 {"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
 
 # ── LLM caller ────────────────────────────────────────────────────────────────
-def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_tokens: int = 256) -> str:
+def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_tokens: int = 256, model: str = "claude-haiku-4-5-20251001") -> str:
     global _session_input_tokens, _session_output_tokens
     delays = [2, 4, 8]
     for attempt, delay in enumerate(delays, 1):
         try:
             response = client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model=model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": user_content}],
@@ -139,7 +139,7 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
 # ── Public functions ──────────────────────────────────────────────────────────
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     hint = f"\nFor this post, prefer category: \"{category_hint}\" if it fits." if category_hint else ""
-    raw = _call_llm(SYSTEM_PROMPT + hint, post_text)
+    raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-sonnet-4-5-20251001")
     if not raw:
         print(f"[Scorer] All retries failed for: {post_text[:60]}")
         return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False}
