@@ -97,7 +97,7 @@ BUYING_SIGNALS = [
     "can anyone recommend", "anyone recommend", "anyone know a good",
     "help with", "seeking a vendor", "seeking a partner",
     "looking to hire", "want to hire", "looking to outsource", "need to hire",
-    "budget", "agency", "contractor", "outsource", "freelancer",
+    "budget", "agency", "contractor", "outsource", "freelancer", "freelance",
     "service provider", "need help finding", "who do you use",
 ]
 
@@ -118,9 +118,11 @@ def _has_buying_signal(text: str) -> bool:
     return any(sig in lower for sig in BUYING_SIGNALS)
 
 
-def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
+def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
     results = []
+    total_scanned = 0
     for post in posts:
+        total_scanned += 1
         try:
             text = post.get("text", "")
             if not text or len(text) < 50:
@@ -194,7 +196,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> list:
             print(f"[Saved] {author} | score={scored['intent_score']} | {text[:60]}")
         except Exception as e:
             print(f"[Error] processing post: {e}")
-    return results
+    return results, total_scanned
 
 
 async def run_ingestion(
@@ -209,6 +211,7 @@ async def run_ingestion(
 
     print(f"[Ingestion] Keywords to scan: {[kw for _, kw in keyword_map]}")
     results = []
+    total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         # All keywords fire in parallel — cuts 3-4 min sequential to ~40s
         tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
@@ -219,6 +222,10 @@ async def run_ingestion(
                 print(f"[Error] keyword='{keyword}': {posts}")
                 continue
             print(f"[Apify] '{keyword}' returned {len(posts)} posts")
-            results.extend(_process_posts(posts, category, user_id))
+            saved, scanned = _process_posts(posts, category, user_id)
+            results.extend(saved)
+            total_scanned += scanned
 
-    return results
+    total_saved = len(results)
+    print(f"[Ingestion] Done — scanned={total_scanned} saved={total_saved} rejected={total_scanned - total_saved}")
+    return {"total_scanned": total_scanned, "total_saved": total_saved, "total_rejected": total_scanned - total_saved}

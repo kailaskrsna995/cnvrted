@@ -12,6 +12,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 # Global lock — prevents concurrent scans from stacking up
 _scan_in_progress = False
+_last_scan_stats = {"total_scanned": 0, "total_rejected": 0, "total_saved": 0}
 
 
 class IngestRequest(BaseModel):
@@ -29,6 +30,10 @@ MOCK_POSTS = [
     {"author": "Amara Johnson", "company": "D2C Brand", "text": "Need social media help — we have great products but zero online presence. Looking for someone to build our content strategy from scratch.", "category": "Marketing"},
     {"author": "Tom Brecker", "company": "Logistics Co", "text": "Automate support is the goal this quarter. We process 500+ tickets daily and need AI to cut that to under 100. Who has done this before?", "category": "AI Automation"},
 ]
+
+@router.get("/status/")
+def scan_status():
+    return {"scanning": _scan_in_progress, **_last_scan_stats}
 
 @router.post("/seed")
 async def seed_mock_leads():
@@ -55,9 +60,10 @@ async def seed_mock_leads():
     return {"seeded": len(inserted)}
 
 async def _run_and_unlock(keywords, domain, user_id):
-    global _scan_in_progress
+    global _scan_in_progress, _last_scan_stats
     try:
-        await run_ingestion(keywords, domain, user_id)
+        stats = await run_ingestion(keywords, domain, user_id)
+        _last_scan_stats = stats
     finally:
         _scan_in_progress = False
 

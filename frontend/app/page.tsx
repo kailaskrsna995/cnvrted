@@ -27,6 +27,12 @@ type Lead = {
 
 type ActiveSearch = { domain: string; keywords: string[] }
 
+type ScanStats = {
+  total_scanned: number
+  total_rejected: number
+  total_saved: number
+}
+
 function scoreColor(score: number) {
   if (score >= 80) return 'bg-black text-white'
   if (score >= 60) return 'bg-gray-700 text-white'
@@ -240,6 +246,14 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!username.trim() || !password.trim() || loading) return
+
+    // Restrict to @cnvrted.com accounts only
+    const uname = username.trim().toLowerCase()
+    if (!uname.endsWith('@cnvrted.com')) {
+      setError('Restricted Access — only @cnvrted.com accounts are permitted.')
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
@@ -247,7 +261,7 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: username.trim().toLowerCase(),
+          username: uname,
           name: name.trim(),
           profession: profession.trim(),
           password
@@ -351,10 +365,10 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
               </div>
 
               <div>
-                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Username</label>
+                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Email</label>
                 <input
                   type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  placeholder="e.g. kailas95"
+                  placeholder="e.g. kai@cnvrted.com"
                   className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
                 />
               </div>
@@ -399,7 +413,11 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
                 </div>
               </div>
 
-              {error && <p className="font-mono-custom text-xs text-red-500 uppercase tracking-widest">{error}</p>}
+              {error && (
+                <p className={`font-mono-custom text-xs uppercase tracking-widest ${error.startsWith('Restricted') ? 'text-red-600 font-bold' : 'text-red-500'}`}>
+                  {error}
+                </p>
+              )}
 
               <button
                 type="submit"
@@ -410,7 +428,7 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
               </button>
 
               <p className="font-mono-custom text-xs text-gray-400 text-center">
-                Returning? Enter your username + password to sign back in.
+                Returning? Enter your email + password to sign back in.
               </p>
             </form>
           </div>
@@ -508,6 +526,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Record<string, number>>({})
   const [savedLeadIds, setSavedLeadIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanStats, setScanStats] = useState<ScanStats>({ total_scanned: 0, total_rejected: 0, total_saved: 0 })
   const [searchQuery, setSearchQuery] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [activeSearch, setActiveSearch] = useState<ActiveSearch | null>(null)
@@ -516,6 +536,13 @@ export default function Dashboard() {
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
   const [previewLead, setPreviewLead] = useState<Lead | null>(null)
+  const [revealedContacts, setRevealedContacts] = useState<Set<string>>(new Set())
+  const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Cleanup poll on unmount
+  useEffect(() => {
+    return () => { if (scanPollRef.current) clearInterval(scanPollRef.current) }
+  }, [])
 
   useEffect(() => {
     const id = localStorage.getItem('cnvrted_user_id')
@@ -528,6 +555,21 @@ export default function Dashboard() {
     }
     setReady(true)
   }, [])
+
+  // On mount, check if scan is already running (e.g. page refresh mid-scan)
+  useEffect(() => {
+    if (!ready) return
+    fetch(`${API}/ingest/status/`)
+      .then(r => r.json())
+      .then(data => {
+        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
+        if (data.scanning) {
+          setScanning(true)
+          startPolling()
+        }
+      })
+      .catch(() => {})
+  }, [ready])
 
   useEffect(() => {
     if (cooldownRemaining <= 0) return
@@ -561,6 +603,25 @@ export default function Dashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [category, userId])
 
+  const startPolling = () => {
+    if (scanPollRef.current) clearInterval(scanPollRef.current)
+    scanPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/ingest/status/`)
+        const data = await res.json()
+        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
+        if (!data.scanning) {
+          setScanning(false)
+          clearInterval(scanPollRef.current!)
+          scanPollRef.current = null
+          // Refresh leads after scan finishes
+          fetchLeads(category, userId)
+          fetchStats(userId)
+        }
+      } catch {}
+    }, 3000)
+  }
+
   const fetchUser = async (id: string) => {
     try {
       const res = await fetch(`${API}/users/${id}/`)
@@ -572,11 +633,6 @@ export default function Dashboard() {
       localStorage.setItem('cnvrted_user_name', displayName)
       if (data.username) localStorage.setItem('cnvrted_username', data.username)
       // TODO: re-enable cooldown restore before production deploy
-      // if (data.last_scanned_at) {
-      //   const elapsed = (Date.now() - new Date(data.last_scanned_at).getTime()) / 1000
-      //   const remaining = Math.max(0, 1800 - elapsed)
-      //   setCooldownRemaining(Math.floor(remaining))
-      // }
       const hasPrefs = !!(data.service_offering?.trim())
       setPreferencesSet(hasPrefs)
       if (hasPrefs) {
@@ -635,7 +691,7 @@ export default function Dashboard() {
   }
 
   const triggerIngest = async () => {
-    if (cooldownRemaining > 0 || loading) return
+    if (cooldownRemaining > 0 || loading || scanning) return
 
     // Always re-resolve from current search box — never use stale activeSearch
     let search: ActiveSearch | null = null
@@ -667,12 +723,11 @@ export default function Dashboard() {
         body: JSON.stringify(body)
       })
       const data = await res.json()
+      if (data.status === 'Scan started in background') {
+        setScanning(true)
+        startPolling()
+      }
       // TODO: re-enable 30-min cooldown before production deploy
-      // if (data.status === 'cooldown') {
-      //   setCooldownRemaining(data.remaining_seconds)
-      // } else {
-      //   setCooldownRemaining(1800)
-      // }
     } catch {}
     setLoading(false)
   }
@@ -696,6 +751,14 @@ export default function Dashboard() {
         return s
       })
     }
+  }
+
+  const toggleReveal = (leadId: string) => {
+    setRevealedContacts(prev => {
+      const s = new Set(prev)
+      s.has(leadId) ? s.delete(leadId) : s.add(leadId)
+      return s
+    })
   }
 
   if (!ready) return null
@@ -785,10 +848,17 @@ export default function Dashboard() {
         <div className="px-4 pt-3">
           <button
             onClick={triggerIngest}
-            disabled={loading || cooldownRemaining > 0}
-            className="font-mono-custom w-full border border-black text-black text-xs px-3 py-2 uppercase tracking-widest hover:bg-black hover:text-white transition disabled:opacity-40"
+            disabled={loading || scanning || cooldownRemaining > 0}
+            className="font-mono-custom w-full border border-black text-black text-xs px-3 py-2 uppercase tracking-widest hover:bg-black hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {loading ? 'Scanning...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : '⚡ Scan'}
+            {scanning ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span>Scanning...</span>
+              </span>
+            ) : loading ? 'Starting...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : '⚡ Scan'}
           </button>
           {cooldownRemaining > 0 && (
             <p className="font-mono-custom text-xs text-gray-300 text-center mt-1.5">next scan in {formatCountdown(cooldownRemaining)}</p>
@@ -859,79 +929,188 @@ export default function Dashboard() {
           )}
 
           <div className="flex flex-col gap-4 max-w-4xl">
-            {leads.map(lead => (
-              <div key={lead.id} className="bg-white border border-black/10 p-6 hover:border-black/30 hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 border border-black/20 flex items-center justify-center font-canela text-sm font-medium shrink-0">
-                      {lead.author?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-canela text-lg font-medium text-black leading-tight">{lead.author}</p>
-                        {isOlderThan24h(lead.posted_at) && (
-                          <span className="font-mono-custom text-xs text-amber-500 border border-amber-200 px-1.5 py-0.5 leading-none">Older Post</span>
-                        )}
+            {leads.map(lead => {
+              const hasEmail = !!lead.contact_email
+              const hasPhone = !!lead.contact_phone
+              const isRevealed = revealedContacts.has(lead.lead_id)
+              return (
+                <div key={lead.id} className="bg-white border border-black/10 p-6 hover:border-black/30 hover:shadow-md transition">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 border border-black/20 flex items-center justify-center font-canela text-sm font-medium shrink-0">
+                        {lead.author?.[0]?.toUpperCase() || '?'}
                       </div>
-                      {lead.profession && <p className="font-mono-custom text-xs text-gray-500 mt-0.5">{lead.profession}</p>}
-                      {lead.domain && <p className="font-mono-custom text-xs text-gray-400">{lead.domain}</p>}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-canela text-lg font-medium text-black leading-tight">{lead.author}</p>
+                          {isOlderThan24h(lead.posted_at) && (
+                            <span className="font-mono-custom text-xs text-amber-500 border border-amber-200 px-1.5 py-0.5 leading-none">Older Post</span>
+                          )}
+                        </div>
+                        {lead.profession && <p className="font-mono-custom text-xs text-gray-500 mt-0.5">{lead.profession}</p>}
+                        {lead.domain && <p className="font-mono-custom text-xs text-gray-400">{lead.domain}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`font-mono-custom text-xs font-bold ${timelineColor(lead.timeline)}`}>{lead.timeline}</span>
+                      <span className={`font-mono-custom text-xs px-2 py-1 font-bold ${scoreColor(lead.intent_score)}`}>
+                        {lead.intent_score}
+                      </span>
+                      <button
+                        onClick={() => toggleSave(lead)}
+                        className={`text-lg leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-300 hover:text-gray-500'}`}
+                        title={savedLeadIds.has(lead.lead_id) ? 'Unsave' : 'Save'}
+                      >
+                        {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`font-mono-custom text-xs font-bold ${timelineColor(lead.timeline)}`}>{lead.timeline}</span>
-                    <span className={`font-mono-custom text-xs px-2 py-1 font-bold ${scoreColor(lead.intent_score)}`}>
-                      {lead.intent_score}
-                    </span>
-                    <button
-                      onClick={() => toggleSave(lead)}
-                      className={`text-lg leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-300 hover:text-gray-500'}`}
-                      title={savedLeadIds.has(lead.lead_id) ? 'Unsave' : 'Save'}
-                    >
-                      {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
-                    </button>
+
+                  {lead.exact_need && (
+                    <div className="border-l-2 border-black pl-3 mb-4">
+                      <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Looking for</p>
+                      <p className="font-canela text-base text-black">{lead.exact_need}</p>
+                    </div>
+                  )}
+
+                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">{lead.post_text}</p>
+
+                  <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
+                    {/* Email contact */}
+                    {hasEmail ? (
+                      isRevealed ? (
+                        <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
+                          ✉ {lead.contact_email}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => toggleReveal(lead.lead_id)}
+                          className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
+                        >
+                          ✉ Reveal Email
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        disabled
+                        className="font-mono-custom text-xs border border-red-200 text-red-400 bg-red-50 px-2.5 py-1 cursor-not-allowed"
+                        title="No email found in post"
+                      >
+                        ✉ Unavailable
+                      </button>
+                    )}
+
+                    {/* Phone contact */}
+                    {hasPhone ? (
+                      isRevealed ? (
+                        <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
+                          📞 {lead.contact_phone}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => toggleReveal(lead.lead_id)}
+                          className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
+                        >
+                          📞 Reveal Phone
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        disabled
+                        className="font-mono-custom text-xs border border-red-200 text-red-400 bg-red-50 px-2.5 py-1 cursor-not-allowed"
+                        title="No phone found in post"
+                      >
+                        📞 Unavailable
+                      </button>
+                    )}
+
+                    {lead.contact_linkedin
+                      ? <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer" className="font-mono-custom text-xs text-black underline underline-offset-2">LinkedIn ↗</a>
+                      : <span className="font-mono-custom text-xs text-gray-300">No LinkedIn</span>
+                    }
+                    <span className="font-mono-custom text-xs text-gray-300 ml-auto">{formatDate(lead.ingested_at)}</span>
+                    {lead.source_url && (
+                      <button onClick={() => setPreviewLead(lead)} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">
+                        View post ↗
+                      </button>
+                    )}
                   </div>
                 </div>
-
-                {lead.exact_need && (
-                  <div className="border-l-2 border-black pl-3 mb-4">
-                    <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Looking for</p>
-                    <p className="font-canela text-base text-black">{lead.exact_need}</p>
-                  </div>
-                )}
-
-                <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">{lead.post_text}</p>
-
-                <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-                  {lead.contact_email ? (
-                    <span className="font-mono-custom text-xs text-gray-400">✉ {lead.contact_email}</span>
-                  ) : (
-                    <button className="font-mono-custom text-xs border border-black/15 px-2.5 py-1 text-gray-500 hover:border-black/40 transition">
-                      🔒 Unlock Email
-                    </button>
-                  )}
-                  {lead.contact_phone ? (
-                    <span className="font-mono-custom text-xs text-gray-400">📞 {lead.contact_phone}</span>
-                  ) : (
-                    <button className="font-mono-custom text-xs border border-black/15 px-2.5 py-1 text-gray-500 hover:border-black/40 transition">
-                      🔒 Unlock Phone
-                    </button>
-                  )}
-                  {lead.contact_linkedin
-                    ? <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer" className="font-mono-custom text-xs text-black underline underline-offset-2">LinkedIn ↗</a>
-                    : <span className="font-mono-custom text-xs text-gray-300">No LinkedIn</span>
-                  }
-                  <span className="font-mono-custom text-xs text-gray-300 ml-auto">{formatDate(lead.ingested_at)}</span>
-                  {lead.source_url && (
-                    <button onClick={() => setPreviewLead(lead)} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">
-                      View post ↗
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </main>
+
+      {/* Right panel — scan metrics */}
+      <aside className="w-56 border-l border-black/10 bg-white/80 backdrop-blur flex flex-col h-screen shrink-0">
+        <div className="px-5 py-5 border-b border-black/10">
+          <p className="font-mono-custom text-xs font-bold tracking-widest uppercase text-black">Scan Metrics</p>
+        </div>
+
+        <div className="px-5 py-6 flex flex-col gap-6">
+          {/* Scanning indicator */}
+          {scanning && (
+            <div className="flex items-center gap-2 py-2 px-3 border border-amber-200 bg-amber-50">
+              <span className="inline-block w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shrink-0" />
+              <p className="font-mono-custom text-xs text-amber-600 uppercase tracking-widest">Scanning...</p>
+            </div>
+          )}
+
+          {/* Posts scanned */}
+          <div>
+            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Posts Scanned</p>
+            <p className="font-canela text-4xl font-light text-black leading-none">
+              {scanStats.total_scanned}
+            </p>
+          </div>
+
+          {/* Rejected */}
+          <div>
+            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Rejected</p>
+            <p className="font-canela text-4xl font-light text-red-400 leading-none">
+              {scanStats.total_rejected}
+            </p>
+            {scanStats.total_scanned > 0 && (
+              <p className="font-mono-custom text-xs text-gray-300 mt-1">
+                {Math.round((scanStats.total_rejected / scanStats.total_scanned) * 100)}% filtered out
+              </p>
+            )}
+          </div>
+
+          {/* Accepted */}
+          <div>
+            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Accepted</p>
+            <p className="font-canela text-4xl font-light text-green-600 leading-none">
+              {scanStats.total_saved}
+            </p>
+            {scanStats.total_scanned > 0 && (
+              <p className="font-mono-custom text-xs text-gray-300 mt-1">
+                {Math.round((scanStats.total_saved / scanStats.total_scanned) * 100)}% qualified
+              </p>
+            )}
+          </div>
+
+          {/* Acceptance bar */}
+          {scanStats.total_scanned > 0 && (
+            <div>
+              <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-2">Quality</p>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500 transition-all duration-700"
+                  style={{ width: `${Math.round((scanStats.total_saved / scanStats.total_scanned) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {scanStats.total_scanned === 0 && !scanning && (
+            <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest leading-relaxed">
+              Hit scan to see metrics here
+            </p>
+          )}
+        </div>
+      </aside>
     </div>
   )
 }
