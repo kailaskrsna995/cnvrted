@@ -49,7 +49,6 @@ def auth(req: AuthRequest):
         "name": req.name,
         "profession": req.profession,
         "password_hash": hash_password(req.password),
-        "status": "approved"
     }).execute()
     
     return result.data[0]
