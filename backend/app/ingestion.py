@@ -99,6 +99,13 @@ BUYING_SIGNALS = [
     "looking to hire", "want to hire", "looking to outsource", "need to hire",
     "budget", "agency", "contractor", "outsource", "freelancer", "freelance",
     "service provider", "need help finding", "who do you use",
+    # Creative / project-based buying signals
+    "recommend someone", "recommend a", "know anyone", "know someone who",
+    "hire someone", "find someone", "need someone", "find a good",
+    "looking to work with", "open to collaborat", "looking to connect with",
+    "shoot", "produce", "edit", "create content", "make a video",
+    "production company", "video production", "creative agency",
+    "need help with", "require a", "require an",
 ]
 
 
