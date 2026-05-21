@@ -635,6 +635,14 @@ export default function Dashboard() {
   const fetchUser = async (id: string) => {
     try {
       const res = await fetch(`${API}/users/${id}/`)
+      if (res.status === 404) {
+        // User doesn't exist in this DB — stale localStorage, force re-login
+        localStorage.clear()
+        setUserId(null)
+        setUserName('')
+        setPreferencesSet(null)
+        return
+      }
       if (!res.ok) return
       const data = await res.json()
       const displayName = data.name || data.username || ''
