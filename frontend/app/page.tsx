@@ -62,7 +62,6 @@ function formatCountdown(secs: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-<<<<<<< HEAD
 const INDUSTRIES = ['E-commerce', 'SaaS / Tech', 'Healthcare', 'Finance', 'Real Estate', 'Logistics', 'Education', 'Other']
 const SIZES = ['SMB (1–50)', 'Mid-market (50–500)', 'Enterprise (500+)', 'All sizes']
 
