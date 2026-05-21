@@ -41,12 +41,17 @@ def auth(req: AuthRequest):
         return user
 
     # New user — register
+    if not req.username.endswith("@cnvrted.com"):
+        raise HTTPException(status_code=403, detail="Access denied. Only @cnvrted.com emails are allowed.")
+
     result = supabase.table("users").insert({
         "username": req.username,
         "name": req.name,
         "profession": req.profession,
-        "password_hash": hash_password(req.password)
+        "password_hash": hash_password(req.password),
+        "status": "approved"
     }).execute()
+    
     return result.data[0]
 
 

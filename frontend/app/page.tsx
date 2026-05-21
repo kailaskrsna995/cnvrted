@@ -62,6 +62,7 @@ function formatCountdown(secs: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+<<<<<<< HEAD
 const INDUSTRIES = ['E-commerce', 'SaaS / Tech', 'Healthcare', 'Finance', 'Real Estate', 'Logistics', 'Education', 'Other']
 const SIZES = ['SMB (1–50)', 'Mid-market (50–500)', 'Enterprise (500+)', 'All sizes']
 
@@ -218,7 +219,7 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
   )
 }
 
-function OnboardingScreen({ onComplete }: { onComplete: (userId: string, displayName: string) => void }) {
+function OnboardingScreen({ onComplete }: { onComplete: (userId: string, displayName: string, status: string) => void }) {
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [profession, setProfession] = useState('')
@@ -272,12 +273,18 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
         setLoading(false)
         return
       }
+      if (res.status === 403) {
+        setError('Only @cnvrted.com emails are allowed.')
+        setLoading(false)
+        return
+      }
       const user = await res.json()
       const displayName = user.name || user.username
       localStorage.setItem('cnvrted_user_id', user.id)
       localStorage.setItem('cnvrted_user_name', displayName)
       localStorage.setItem('cnvrted_username', user.username)
-      onComplete(user.id, displayName)
+      localStorage.setItem('cnvrted_user_status', user.status || 'pending')
+      onComplete(user.id, displayName, user.status || 'pending')
     } catch {
       setError('Something went wrong. Try again.')
       setLoading(false)
@@ -365,10 +372,10 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
               </div>
 
               <div>
-                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Email</label>
+                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Work Email</label>
                 <input
                   type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  placeholder="e.g. kai@cnvrted.com"
+                  placeholder="e.g. name@cnvrted.com"
                   className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
                 />
               </div>
@@ -520,6 +527,7 @@ export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
   const [userPosition, setUserPosition] = useState('')
+  const [userStatus, setUserStatus] = useState('pending')
   const [ready, setReady] = useState(false)
   const [leads, setLeads] = useState<Lead[]>([])
   const [category, setCategory] = useState('All')
@@ -547,9 +555,11 @@ export default function Dashboard() {
   useEffect(() => {
     const id = localStorage.getItem('cnvrted_user_id')
     const name = localStorage.getItem('cnvrted_user_name')
+    const status = localStorage.getItem('cnvrted_user_status')
     if (id) {
       setUserId(id)
       if (name) setUserName(name)
+      if (status) setUserStatus(status)
       fetchUser(id)
       fetchSaved(id)
     }
@@ -630,9 +640,16 @@ export default function Dashboard() {
       const displayName = data.name || data.username || ''
       setUserName(displayName)
       setUserPosition(data.profession || '')
+      setUserStatus(data.status || 'pending')
       localStorage.setItem('cnvrted_user_name', displayName)
       if (data.username) localStorage.setItem('cnvrted_username', data.username)
-      // TODO: re-enable cooldown restore before production deploy
+      localStorage.setItem('cnvrted_user_status', data.status || 'pending')
+      if (data.last_scanned_at) {
+        const elapsed = (Date.now() - new Date(data.last_scanned_at).getTime()) / 1000
+        const remaining = Math.max(0, 1800 - elapsed)
+        setCooldownRemaining(Math.floor(remaining))
+      }
+      
       const hasPrefs = !!(data.service_offering?.trim())
       setPreferencesSet(hasPrefs)
       if (hasPrefs) {
@@ -763,8 +780,35 @@ export default function Dashboard() {
 
   if (!ready) return null
   if (!userId) {
-    return <OnboardingScreen onComplete={(id, name) => { setUserId(id); setUserName(name); fetchSaved(id); setPreferencesSet(false) }} />
+    return <OnboardingScreen onComplete={(id, name, status) => { setUserId(id); setUserName(name); setUserStatus(status); fetchSaved(id); setPreferencesSet(false) }} />
   }
+
+  if (userStatus === 'pending') {
+    return (
+      <div className="h-screen flex items-center justify-center bg-black">
+        <div className="text-center">
+          <h1 className="font-canela text-4xl text-white mb-4">Under Review</h1>
+          <p className="font-mono-custom text-sm text-gray-400 uppercase tracking-widest leading-relaxed">
+            Your account is pending approval.<br/>Our team has been notified.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (userStatus === 'rejected') {
+    return (
+      <div className="h-screen flex items-center justify-center bg-black">
+        <div className="text-center">
+          <h1 className="font-canela text-4xl text-white mb-4">Access Denied</h1>
+          <p className="font-mono-custom text-sm text-red-500 uppercase tracking-widest">
+            Your account request was rejected.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (preferencesSet === null) return null
   if (!preferencesSet) {
     return (
