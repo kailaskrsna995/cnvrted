@@ -106,6 +106,9 @@ BUYING_SIGNALS = [
     "shoot", "produce", "edit", "create content", "make a video",
     "production company", "video production", "creative agency",
     "need help with", "require a", "require an",
+    # Company hiring signals — growing companies are buyers too
+    "we're hiring", "we are hiring", "now hiring", "hiring for",
+    "open role", "open position", "join our team", "looking to bring on",
 ]
 
 
