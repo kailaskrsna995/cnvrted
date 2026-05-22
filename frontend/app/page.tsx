@@ -218,10 +218,15 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
   )
 }
 
+const ALLOWED_EMAILS = [
+  'kailaskrsna@cnvrted.com',
+  'sharan@cnvrted.com',
+  'vishnu@cnvrted.com',
+  'dhruv@cnvrted.com',
+]
+
 function OnboardingScreen({ onComplete }: { onComplete: (userId: string, displayName: string, status: string) => void }) {
-  const [name, setName] = useState('')
   const [username, setUsername] = useState('')
-  const [profession, setProfession] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -247,10 +252,9 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
     e.preventDefault()
     if (!username.trim() || !password.trim() || loading) return
 
-    // Restrict to @cnvrted.com accounts only
     const uname = username.trim().toLowerCase()
-    if (!uname.endsWith('@cnvrted.com')) {
-      setError('Restricted Access — only @cnvrted.com accounts are permitted.')
+    if (!ALLOWED_EMAILS.includes(uname)) {
+      setError('Restricted Access.')
       return
     }
 
@@ -262,8 +266,8 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: uname,
-          name: name.trim(),
-          profession: profession.trim(),
+          name: '',
+          profession: '',
           password
         })
       })
@@ -362,30 +366,10 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
               <div>
-                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Name</label>
-                <input
-                  type="text" value={name} onChange={e => setName(e.target.value)}
-                  placeholder="Your full name" autoFocus
-                  className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
-                />
-              </div>
-
-              <div>
                 <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Work Email</label>
                 <input
                   type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  placeholder="e.g. name@cnvrted.com"
-                  className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
-                />
-              </div>
-
-              <div>
-                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">
-                  Profession <span className="text-gray-300 normal-case">(optional)</span>
-                </label>
-                <input
-                  type="text" value={profession} onChange={e => setProfession(e.target.value)}
-                  placeholder="e.g. Founder, Sales Lead"
+                  placeholder="e.g. name@cnvrted.com" autoFocus
                   className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
                 />
               </div>
