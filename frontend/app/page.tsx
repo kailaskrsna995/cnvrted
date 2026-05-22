@@ -445,11 +445,12 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   )
 }
 
-function ProfileModal({ userName, userPosition, savedLeadIds, onClose }: {
+function ProfileModal({ userName, userPosition, savedLeadIds, onClose, onLogout }: {
   userName: string
   userPosition: string
   savedLeadIds: Set<string>
   onClose: () => void
+  onLogout: () => void
 }) {
   const [savedLeads, setSavedLeads] = useState<Lead[]>([])
 
@@ -476,7 +477,15 @@ function ProfileModal({ userName, userPosition, savedLeadIds, onClose }: {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="font-mono-custom text-xs text-gray-400 hover:text-black uppercase tracking-widest transition">✕</button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onLogout}
+              className="font-mono-custom text-xs text-red-400 hover:text-red-600 uppercase tracking-widest transition"
+            >
+              Log out
+            </button>
+            <button onClick={onClose} className="font-mono-custom text-xs text-gray-400 hover:text-black uppercase tracking-widest transition">✕</button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -823,6 +832,14 @@ export default function Dashboard() {
           userPosition={userPosition}
           savedLeadIds={savedLeadIds}
           onClose={() => setProfileOpen(false)}
+          onLogout={() => {
+            localStorage.clear()
+            setUserId(null)
+            setUserName('')
+            setProfileOpen(false)
+            setPreferencesSet(null)
+            setLeads([])
+          }}
         />
       )}
       {previewLead && (
@@ -1094,11 +1111,6 @@ export default function Dashboard() {
             <p className="font-canela text-4xl font-light text-red-400 leading-none">
               {scanStats.total_rejected}
             </p>
-            {scanStats.total_scanned > 0 && (
-              <p className="font-mono-custom text-xs text-gray-300 mt-1">
-                {Math.round((scanStats.total_rejected / scanStats.total_scanned) * 100)}% filtered out
-              </p>
-            )}
           </div>
 
           {/* Accepted */}
@@ -1107,25 +1119,7 @@ export default function Dashboard() {
             <p className="font-canela text-4xl font-light text-green-600 leading-none">
               {scanStats.total_saved}
             </p>
-            {scanStats.total_scanned > 0 && (
-              <p className="font-mono-custom text-xs text-gray-300 mt-1">
-                {Math.round((scanStats.total_saved / scanStats.total_scanned) * 100)}% qualified
-              </p>
-            )}
           </div>
-
-          {/* Acceptance bar */}
-          {scanStats.total_scanned > 0 && (
-            <div>
-              <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-2">Quality</p>
-              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 transition-all duration-700"
-                  style={{ width: `${Math.round((scanStats.total_saved / scanStats.total_scanned) * 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
 
           {scanStats.total_scanned === 0 && !scanning && (
             <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest leading-relaxed">
