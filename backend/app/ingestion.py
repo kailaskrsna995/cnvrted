@@ -22,12 +22,7 @@ KEYWORDS = {
 }
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
-REDDIT_ACTOR = "automation-lab~reddit-scraper"
-
-REDDIT_SUBREDDITS = [
-    "entrepreneur", "smallbusiness", "startups",
-    "forhire", "SaaS", "digital_marketing", "agencies",
-]
+REDDIT_HEADERS = {"User-Agent": "cnvrted/1.0"}
 
 def generate_lead_id(url: str, text: str, author: str) -> str:
     raw = f"{url}{text[:100]}{author}"
@@ -216,75 +211,41 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
     return results, total_scanned
 
 
-async def fetch_reddit_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
-    run_resp = await client.post(
-        f"https://api.apify.com/v2/acts/{REDDIT_ACTOR}/runs",
-        params={"token": APIFY_API_TOKEN},
-        json={
-            "searchQuery": keyword,
-            "sort": "new",
-            "timeFilter": "week",
-            "maxPostsPerSource": 25,
-            "includeComments": False,
-            "maxCommentsPerPost": 0,
-        }
-    )
-    if run_resp.status_code not in (200, 201):
-        print(f"[Reddit] Failed to start run for '{keyword}': {run_resp.text[:200]}")
+async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
+    from urllib.parse import quote
+    url = f"https://www.reddit.com/search.json?q={quote(keyword)}&sort=new&limit=25&t=week"
+    try:
+        resp = await client.get(url, headers=REDDIT_HEADERS)
+        if resp.status_code != 200:
+            print(f"[Reddit] '{keyword}' HTTP {resp.status_code}")
+            return []
+        posts = resp.json().get("data", {}).get("children", [])
+        print(f"[Reddit] '{keyword}' returned {len(posts)} posts")
+        normalised = []
+        for post in posts:
+            p = post.get("data", {})
+            title = p.get("title", "")
+            body = p.get("selftext", "")
+            text = f"{title}\n{body}".strip()
+            permalink = p.get("permalink", "")
+            if permalink:
+                permalink = f"https://reddit.com{permalink}"
+            normalised.append({
+                "text": text,
+                "author": {
+                    "firstName": p.get("author", "Reddit User"),
+                    "lastName": "",
+                    "occupation": f"r/{p.get('subreddit', '')}",
+                    "publicId": "",
+                },
+                "url": permalink,
+                "postedAt": p.get("created_utc"),
+                "_platform": "reddit",
+            })
+        return normalised
+    except Exception as e:
+        print(f"[Reddit] Error for '{keyword}': {e}")
         return []
-
-    run_id = run_resp.json()["data"]["id"]
-    print(f"[Reddit] Run started for '{keyword}' run_id={run_id}")
-
-    for _ in range(24):
-        await asyncio.sleep(5)
-        status_resp = await client.get(
-            f"https://api.apify.com/v2/actor-runs/{run_id}",
-            params={"token": APIFY_API_TOKEN}
-        )
-        status = status_resp.json()["data"]["status"]
-        print(f"[Reddit] '{keyword}' status={status}")
-        if status in ("SUCCEEDED", "FAILED", "ABORTED"):
-            break
-
-    if status != "SUCCEEDED":
-        print(f"[Reddit] Run did not succeed for '{keyword}'")
-        return []
-
-    run_data_resp = await client.get(
-        f"https://api.apify.com/v2/actor-runs/{run_id}",
-        params={"token": APIFY_API_TOKEN}
-    )
-    dataset_id = run_data_resp.json()["data"]["defaultDatasetId"]
-    items_resp = await client.get(
-        f"https://api.apify.com/v2/datasets/{dataset_id}/items",
-        params={"token": APIFY_API_TOKEN}
-    )
-    raw_items = items_resp.json() if items_resp.status_code == 200 else []
-    print(f"[Reddit] dataset={dataset_id} count={len(raw_items)}")
-
-    # Normalise Reddit fields to match LinkedIn post shape
-    normalised = []
-    for item in raw_items:
-        title = item.get("title", "")
-        body = item.get("body", item.get("selftext", item.get("text", "")))
-        text = f"{title}\n{body}".strip()
-        permalink = item.get("permalink", item.get("url", ""))
-        if permalink and not permalink.startswith("http"):
-            permalink = f"https://reddit.com{permalink}"
-        normalised.append({
-            "text": text,
-            "author": {
-                "firstName": item.get("username", item.get("author", "Reddit User")),
-                "lastName": "",
-                "occupation": f"r/{item.get('subreddit', item.get('community', ''))}",
-                "publicId": "",
-            },
-            "url": permalink,
-            "postedAt": item.get("createdAt") or item.get("created_utc"),
-            "_platform": "reddit",
-        })
-    return normalised
 
 
 async def run_ingestion(
@@ -303,7 +264,7 @@ async def run_ingestion(
     async with httpx.AsyncClient(timeout=300) as client:
         # LinkedIn + Reddit fire in parallel
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        reddit_tasks = [fetch_reddit_apify_results(client, kw) for _, kw in keyword_map]
+        reddit_tasks = [fetch_reddit_results(client, kw) for _, kw in keyword_map]
         all_results = await asyncio.gather(*linkedin_tasks, *reddit_tasks, return_exceptions=True)
 
         linkedin_results = all_results[:len(keyword_map)]
