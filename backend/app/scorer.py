@@ -149,12 +149,17 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
 # ── Public functions ──────────────────────────────────────────────────────────
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     hint = f"\nFor this post, prefer category: \"{category_hint}\" if it fits." if category_hint else ""
+    tokens_in_before = _session_input_tokens
+    tokens_out_before = _session_output_tokens
     raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-sonnet-4-6")
+    tokens_used = (_session_input_tokens - tokens_in_before) + (_session_output_tokens - tokens_out_before)
     if not raw:
         print(f"[Scorer] All retries failed for: {post_text[:60]}")
-        return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False}
+        return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False, "tokens_used": 0}
     print(f"[Scorer] raw={raw}")
-    return json.loads(raw)
+    result = json.loads(raw)
+    result["tokens_used"] = tokens_used
+    return result
 
 
 def map_query_to_search(raw_query: str) -> dict:

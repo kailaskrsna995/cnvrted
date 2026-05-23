@@ -206,6 +206,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
                 "source_url": url,
                 "posted_at": posted_at,
                 "user_id": user_id,
+                "tokens_used": scored.get("tokens_used", 0),
             }
             supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()
             results.append(lead)
