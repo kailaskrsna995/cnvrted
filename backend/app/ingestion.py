@@ -221,10 +221,11 @@ async def fetch_reddit_apify_results(client: httpx.AsyncClient, keyword: str) ->
         f"https://api.apify.com/v2/acts/{REDDIT_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
         json={
-            "searches": [keyword],
-            "subreddits": REDDIT_SUBREDDITS,
+            "searchQuery": keyword,
             "sort": "new",
-            "maxItems": 50,
+            "timeFilter": "week",
+            "maxPostsPerSource": 25,
+            "includeComments": False,
             "maxCommentsPerPost": 0,
         }
     )
@@ -265,15 +266,21 @@ async def fetch_reddit_apify_results(client: httpx.AsyncClient, keyword: str) ->
     # Normalise Reddit fields to match LinkedIn post shape
     normalised = []
     for item in raw_items:
+        title = item.get("title", "")
+        body = item.get("body", item.get("selftext", item.get("text", "")))
+        text = f"{title}\n{body}".strip()
+        permalink = item.get("permalink", item.get("url", ""))
+        if permalink and not permalink.startswith("http"):
+            permalink = f"https://reddit.com{permalink}"
         normalised.append({
-            "text": item.get("title", "") + "\n" + item.get("body", item.get("selftext", "")),
+            "text": text,
             "author": {
-                "firstName": item.get("author", "Reddit User"),
+                "firstName": item.get("username", item.get("author", "Reddit User")),
                 "lastName": "",
-                "occupation": item.get("subreddit", ""),
+                "occupation": f"r/{item.get('subreddit', item.get('community', ''))}",
                 "publicId": "",
             },
-            "url": f"https://reddit.com{item.get('permalink', '')}",
+            "url": permalink,
             "postedAt": item.get("createdAt") or item.get("created_utc"),
             "_platform": "reddit",
         })
