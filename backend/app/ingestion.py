@@ -22,6 +22,12 @@ KEYWORDS = {
 }
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
+REDDIT_ACTOR = "automation-lab~reddit-scraper"
+
+REDDIT_SUBREDDITS = [
+    "entrepreneur", "smallbusiness", "startups",
+    "forhire", "SaaS", "digital_marketing", "agencies",
+]
 
 def generate_lead_id(url: str, text: str, author: str) -> str:
     raw = f"{url}{text[:100]}{author}"
@@ -183,7 +189,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
             lead_id = generate_lead_id(url, text, author)
             lead = {
                 "lead_id": lead_id,
-                "platform": "linkedin",
+                "platform": post.get("_platform", "linkedin"),
                 "author": author,
                 "profession": occupation,
                 "company": "",
@@ -209,6 +215,70 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
     return results, total_scanned
 
 
+async def fetch_reddit_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
+    run_resp = await client.post(
+        f"https://api.apify.com/v2/acts/{REDDIT_ACTOR}/runs",
+        params={"token": APIFY_API_TOKEN},
+        json={
+            "searches": [keyword],
+            "subreddits": REDDIT_SUBREDDITS,
+            "sort": "new",
+            "maxItems": 50,
+            "maxCommentsPerPost": 0,
+        }
+    )
+    if run_resp.status_code not in (200, 201):
+        print(f"[Reddit] Failed to start run for '{keyword}': {run_resp.text[:200]}")
+        return []
+
+    run_id = run_resp.json()["data"]["id"]
+    print(f"[Reddit] Run started for '{keyword}' run_id={run_id}")
+
+    for _ in range(24):
+        await asyncio.sleep(5)
+        status_resp = await client.get(
+            f"https://api.apify.com/v2/actor-runs/{run_id}",
+            params={"token": APIFY_API_TOKEN}
+        )
+        status = status_resp.json()["data"]["status"]
+        print(f"[Reddit] '{keyword}' status={status}")
+        if status in ("SUCCEEDED", "FAILED", "ABORTED"):
+            break
+
+    if status != "SUCCEEDED":
+        print(f"[Reddit] Run did not succeed for '{keyword}'")
+        return []
+
+    run_data_resp = await client.get(
+        f"https://api.apify.com/v2/actor-runs/{run_id}",
+        params={"token": APIFY_API_TOKEN}
+    )
+    dataset_id = run_data_resp.json()["data"]["defaultDatasetId"]
+    items_resp = await client.get(
+        f"https://api.apify.com/v2/datasets/{dataset_id}/items",
+        params={"token": APIFY_API_TOKEN}
+    )
+    raw_items = items_resp.json() if items_resp.status_code == 200 else []
+    print(f"[Reddit] dataset={dataset_id} count={len(raw_items)}")
+
+    # Normalise Reddit fields to match LinkedIn post shape
+    normalised = []
+    for item in raw_items:
+        normalised.append({
+            "text": item.get("title", "") + "\n" + item.get("body", item.get("selftext", "")),
+            "author": {
+                "firstName": item.get("author", "Reddit User"),
+                "lastName": "",
+                "occupation": item.get("subreddit", ""),
+                "publicId": "",
+            },
+            "url": f"https://reddit.com{item.get('permalink', '')}",
+            "postedAt": item.get("createdAt") or item.get("created_utc"),
+            "_platform": "reddit",
+        })
+    return normalised
+
+
 async def run_ingestion(
     custom_keywords: Optional[List[str]] = None,
     domain: Optional[str] = None,
@@ -223,15 +293,31 @@ async def run_ingestion(
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
-        # All keywords fire in parallel — cuts 3-4 min sequential to ~40s
-        tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        all_posts = await asyncio.gather(*tasks, return_exceptions=True)
+        # LinkedIn + Reddit fire in parallel
+        linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
+        reddit_tasks = [fetch_reddit_apify_results(client, kw) for _, kw in keyword_map]
+        all_results = await asyncio.gather(*linkedin_tasks, *reddit_tasks, return_exceptions=True)
 
-        for (category, keyword), posts in zip(keyword_map, all_posts):
+        linkedin_results = all_results[:len(keyword_map)]
+        reddit_results = all_results[len(keyword_map):]
+
+        for (category, keyword), posts in zip(keyword_map, linkedin_results):
             if isinstance(posts, Exception):
-                print(f"[Error] keyword='{keyword}': {posts}")
+                print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
                 continue
-            print(f"[Apify] '{keyword}' returned {len(posts)} posts")
+            print(f"[LinkedIn] '{keyword}' returned {len(posts)} posts")
+            saved, scanned = _process_posts(posts, category, user_id)
+            results.extend(saved)
+            total_scanned += scanned
+
+        for (category, keyword), posts in zip(keyword_map, reddit_results):
+            if isinstance(posts, Exception):
+                print(f"[Error] Reddit keyword='{keyword}': {posts}")
+                continue
+            print(f"[Reddit] '{keyword}' returned {len(posts)} posts")
+            # Mark platform for Reddit posts
+            for p in posts:
+                p["_platform"] = "reddit"
             saved, scanned = _process_posts(posts, category, user_id)
             results.extend(saved)
             total_scanned += scanned
