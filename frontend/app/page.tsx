@@ -23,6 +23,8 @@ type Lead = {
   contact_linkedin: string
   ingested_at: string
   posted_at: string | null
+  platform?: string
+  tokens_used?: number
 }
 
 type ActiveSearch = { domain: string; keywords: string[] }
@@ -1052,6 +1054,29 @@ export default function Dashboard() {
                       ? <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer" className="font-mono-custom text-xs text-black underline underline-offset-2">LinkedIn ↗</a>
                       : <span className="font-mono-custom text-xs text-gray-300">No LinkedIn</span>
                     }
+                    {/* Platform logo linking to source post */}
+                    {lead.source_url && (
+                      <a href={lead.source_url} target="_blank" rel="noopener noreferrer" title={`View on ${lead.platform === 'reddit' ? 'Reddit' : 'LinkedIn'}`} className="flex items-center gap-1 hover:opacity-70 transition">
+                        {lead.platform === 'reddit' ? (
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="#FF4500" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="10" cy="10" r="10" fill="#FF4500"/>
+                            <path d="M16.67 10a1.46 1.46 0 0 0-2.47-1 7.12 7.12 0 0 0-3.85-1.23l.65-3.08 2.13.45a1 1 0 1 0 .14-.55l-2.38-.5a.27.27 0 0 0-.32.2l-.73 3.44a7.14 7.14 0 0 0-3.89 1.23 1.46 1.46 0 1 0-1.61 2.39 2.9 2.9 0 0 0 0 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.9 2.9 0 0 0 0-.44 1.46 1.46 0 0 0 .67-1.35zM7.27 11a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm5.59 2.71a3.58 3.58 0 0 1-2.86.86 3.58 3.58 0 0 1-2.86-.86.27.27 0 0 1 .38-.38 3.06 3.06 0 0 0 2.48.68 3.06 3.06 0 0 0 2.48-.68.27.27 0 0 1 .38.38zm-.13-1.71a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" fill="white"/>
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="24" height="24" rx="4" fill="#0A66C2"/>
+                            <path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/>
+                          </svg>
+                        )}
+                        <span className="font-mono-custom text-xs text-gray-400">↗</span>
+                      </a>
+                    )}
+                    {/* Token usage badge — internal only, remove before public launch */}
+                    {lead.tokens_used ? (
+                      <span className="font-mono-custom text-xs text-gray-300 border border-gray-100 px-1.5 py-0.5" title="Tokens used for scoring">
+                        {lead.tokens_used}t
+                      </span>
+                    ) : null}
                     <span className="font-mono-custom text-xs text-gray-300 ml-auto">{formatDate(lead.ingested_at)}</span>
                     {lead.source_url && (
                       <button onClick={() => setPreviewLead(lead)} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">
