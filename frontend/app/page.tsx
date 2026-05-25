@@ -768,7 +768,20 @@ export default function Dashboard() {
     }
   }
 
-  const toggleReveal = (leadId: string) => {
+  const toggleReveal = async (leadId: string) => {
+    // Call Apollo enrich endpoint then reveal
+    try {
+      const res = await fetch(`${API}/leads/${leadId}/enrich/`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        // Update lead in local state with enriched data
+        setLeads(prev => prev.map(l => l.lead_id === leadId ? {
+          ...l,
+          contact_email: data.contact_email || l.contact_email,
+          contact_phone: data.contact_phone || l.contact_phone,
+        } : l))
+      }
+    } catch {}
     setRevealedContacts(prev => {
       const s = new Set(prev)
       s.has(leadId) ? s.delete(leadId) : s.add(leadId)
