@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import leads, ingest
 from app.routes.users import users_router, search_router
+from app.routes.enrich import router as enrich_router
 from app.scorer import get_token_usage
 
 app = FastAPI(title="Intent Intelligence API", redirect_slashes=False)
@@ -17,6 +18,7 @@ app.include_router(leads.router)
 app.include_router(ingest.router)
 app.include_router(users_router)
 app.include_router(search_router)
+app.include_router(enrich_router)
 
 @app.get("/")
 def root():
