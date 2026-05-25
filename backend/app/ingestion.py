@@ -394,18 +394,16 @@ async def run_ingestion(
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
-        # LinkedIn + Reddit fire in parallel
+        # LinkedIn + Twitter only
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        reddit_tasks = [fetch_reddit_results(client, kw) for _, kw in keyword_map]
         twitter_tasks = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
-        all_results = await asyncio.gather(*linkedin_tasks, *reddit_tasks, *twitter_tasks, return_exceptions=True)
+        all_results = await asyncio.gather(*linkedin_tasks, *twitter_tasks, return_exceptions=True)
 
         n = len(keyword_map)
         linkedin_results = all_results[:n]
-        reddit_results = all_results[n:n*2]
-        twitter_results = all_results[n*2:]
+        twitter_results = all_results[n:]
 
-        for platform_label, platform_results in [("LinkedIn", linkedin_results), ("Reddit", reddit_results), ("Twitter", twitter_results)]:
+        for platform_label, platform_results in [("LinkedIn", linkedin_results), ("Twitter", twitter_results)]:
             for (category, keyword), posts in zip(keyword_map, platform_results):
                 if isinstance(posts, Exception):
                     print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
