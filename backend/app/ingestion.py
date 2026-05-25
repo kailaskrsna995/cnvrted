@@ -198,7 +198,11 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
                 "domain": scored.get("domain", ""),
                 "contact_email": scored.get("contact_email", ""),
                 "contact_phone": scored.get("contact_phone", ""),
-                "contact_linkedin": f"https://www.linkedin.com/in/{profile_id}" if profile_id else "",
+                "contact_linkedin": (
+                    f"https://twitter.com/{profile_id}" if post.get("_platform") == "twitter" and profile_id else
+                    f"https://reddit.com/user/{author}" if post.get("_platform") == "reddit" else
+                    f"https://www.linkedin.com/in/{profile_id}" if profile_id else ""
+                ),
                 "source_url": url,
                 "posted_at": posted_at,
                 "user_id": user_id,
