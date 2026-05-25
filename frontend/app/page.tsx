@@ -771,12 +771,12 @@ export default function Dashboard() {
   }
 
   const toggleReveal = async (leadId: string) => {
-    // Call Apollo enrich endpoint then reveal
+    // Mark as revealed immediately so button switches to "Not found" state while loading
+    setRevealedContacts(prev => { const s = new Set(prev); s.add(leadId); return s })
     try {
       const res = await fetch(`${API}/leads/${leadId}/enrich/`, { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
-        // Update lead in local state with enriched data
         setLeads(prev => prev.map(l => l.lead_id === leadId ? {
           ...l,
           contact_email: data.contact_email || l.contact_email,
@@ -784,11 +784,6 @@ export default function Dashboard() {
         } : l))
       }
     } catch {}
-    setRevealedContacts(prev => {
-      const s = new Set(prev)
-      s.has(leadId) ? s.delete(leadId) : s.add(leadId)
-      return s
-    })
   }
 
   if (!ready) return null
@@ -1041,52 +1036,46 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">{lead.post_text}</p>
 
                   <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-                    {/* Email contact — Apollo enrichment for LinkedIn only */}
+                    {/* Email — show directly if extracted from post, else Apollo reveal for LinkedIn */}
                     {hasEmail ? (
+                      <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
+                        ✉ {lead.contact_email}
+                      </span>
+                    ) : lead.platform === 'linkedin' ? (
                       isRevealed ? (
-                        <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
-                          ✉ {lead.contact_email}
+                        <span className="font-mono-custom text-xs text-gray-400 border border-gray-100 px-2.5 py-1">
+                          ✉ Not found
                         </span>
                       ) : (
                         <button
                           onClick={() => toggleReveal(lead.lead_id)}
                           className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
+                          title="Fetch via Apollo"
                         >
                           ✉ Reveal Email
                         </button>
                       )
-                    ) : lead.platform === 'linkedin' ? (
-                      <button
-                        onClick={() => toggleReveal(lead.lead_id)}
-                        className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
-                        title="Fetch via Apollo"
-                      >
-                        ✉ Reveal Email
-                      </button>
                     ) : null}
 
-                    {/* Phone contact — Apollo enrichment for LinkedIn only */}
+                    {/* Phone — show directly if extracted from post, else Apollo reveal for LinkedIn */}
                     {hasPhone ? (
+                      <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
+                        📞 {lead.contact_phone}
+                      </span>
+                    ) : lead.platform === 'linkedin' ? (
                       isRevealed ? (
-                        <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
-                          📞 {lead.contact_phone}
+                        <span className="font-mono-custom text-xs text-gray-400 border border-gray-100 px-2.5 py-1">
+                          📞 Not found
                         </span>
                       ) : (
                         <button
                           onClick={() => toggleReveal(lead.lead_id)}
                           className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
+                          title="Fetch via Apollo"
                         >
                           📞 Reveal Phone
                         </button>
                       )
-                    ) : lead.platform === 'linkedin' ? (
-                      <button
-                        onClick={() => toggleReveal(lead.lead_id)}
-                        className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
-                        title="Fetch via Apollo"
-                      >
-                        📞 Reveal Phone
-                      </button>
                     ) : null}
 
                     {/* Token usage badge — internal only, remove before public launch */}
