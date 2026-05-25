@@ -197,24 +197,59 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], location:
             if category and category != "Custom":
                 scored["category"] = category
 
-            # Extract posted_at — Apify actor field name varies
+            # Extract posted_at — Apify actor field name varies across platforms
             raw_date = (
                 post.get("postedAt") or
                 post.get("posted_at") or
                 post.get("date") or
                 post.get("publishedAt") or
-                post.get("createdAt")
+                post.get("createdAt") or
+                post.get("timeSincePosted") or
+                post.get("time") or
+                post.get("postDate") or
+                post.get("created_utc")
             )
+            if raw_date is None:
+                print(f"[DateDebug] No date field — platform={post.get('_platform','linkedin')} keys={list(post.keys())}")
             posted_at = None
             if raw_date:
                 try:
-                    from datetime import datetime as _dt
+                    from datetime import datetime as _dt, timedelta as _td
+                    import re as _re
                     if isinstance(raw_date, (int, float)):
-                        posted_at = _dt.utcfromtimestamp(raw_date / 1000).isoformat()
-                    else:
-                        posted_at = str(raw_date)
+                        # Unix timestamp (ms if > 1e10, else seconds)
+                        ts = raw_date / 1000 if raw_date > 1e10 else raw_date
+                        posted_at = _dt.utcfromtimestamp(ts).isoformat()
+                    elif isinstance(raw_date, str):
+                        # Relative time strings: "2h", "3d", "1w", "2 hours ago", "3 days ago"
+                        s = raw_date.strip().lower()
+                        m = _re.match(r'^(\d+)\s*(s|sec|m|min|h|hr|hour|d|day|w|week)', s)
+                        if m:
+                            n, unit = int(m.group(1)), m.group(2)
+                            delta = {
+                                's': _td(seconds=n), 'sec': _td(seconds=n),
+                                'm': _td(minutes=n), 'min': _td(minutes=n),
+                                'h': _td(hours=n), 'hr': _td(hours=n), 'hour': _td(hours=n),
+                                'd': _td(days=n), 'day': _td(days=n),
+                                'w': _td(weeks=n), 'week': _td(weeks=n),
+                            }.get(unit)
+                            if delta:
+                                posted_at = (_dt.utcnow() - delta).isoformat()
+                        else:
+                            posted_at = str(raw_date)
                 except Exception:
                     posted_at = None
+
+            # Drop Twitter posts older than 4 days
+            if post.get("_platform") == "twitter" and posted_at:
+                try:
+                    from datetime import datetime as _dt2
+                    age = (_dt2.utcnow() - _dt2.fromisoformat(posted_at.replace("Z", ""))).days
+                    if age > 4:
+                        print(f"[Filter] Twitter post too old ({posted_at[:10]}): {text[:60]}")
+                        continue
+                except Exception:
+                    pass
 
             lead_id = generate_lead_id(url, text, author)
             lead = {

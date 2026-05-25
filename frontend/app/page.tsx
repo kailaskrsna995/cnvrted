@@ -202,7 +202,7 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
         </div>
 
         <div className="px-6 py-4 border-t border-black/10 flex justify-between items-center">
-          <span className="font-mono-custom text-xs text-gray-400">{formatDate(lead.ingested_at)}</span>
+          <span className="font-mono-custom text-xs text-gray-400">{formatDate(lead.posted_at || lead.ingested_at)}</span>
           {lead.source_url ? (
             <a
               href={lead.source_url}
