@@ -221,15 +221,24 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
                     posted_at = None
 
             # Drop Twitter posts older than 4 days
-            if post.get("_platform") == "twitter" and posted_at:
-                try:
-                    from datetime import datetime as _dt2
-                    age = (_dt2.utcnow() - _dt2.fromisoformat(posted_at.replace("Z", ""))).days
-                    if age > 4:
-                        print(f"[Filter] Twitter post too old ({posted_at[:10]}): {text[:60]}")
-                        continue
-                except Exception:
-                    pass
+            if post.get("_platform") == "twitter":
+                drop = True  # default drop if we can't parse
+                if posted_at:
+                    try:
+                        from datetime import datetime as _dt2, timezone as _tz
+                        import re as _re2
+                        # Strip timezone offset so fromisoformat works on all Python versions
+                        clean = _re2.sub(r'[+-]\d{2}:?\d{2}$', '', posted_at.replace("Z", "")).strip()
+                        post_time = _dt2.fromisoformat(clean)
+                        age_days = (_dt2.utcnow() - post_time).days
+                        if age_days <= 4:
+                            drop = False
+                        else:
+                            print(f"[Filter] Twitter post too old ({age_days}d): {text[:60]}")
+                    except Exception as e:
+                        print(f"[Filter] Twitter date parse failed ({posted_at}): {e}")
+                if drop:
+                    continue
 
             lead_id = generate_lead_id(url, text, author)
             lead = {
