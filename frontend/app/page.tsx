@@ -65,6 +65,21 @@ function formatCountdown(secs: number) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function formatRelativeTime(iso: string | null): string {
+  if (!iso) return '—'
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  const weeks = Math.floor(days / 7)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m`
+  if (hours < 24) return `${hours}h`
+  if (days < 7) return `${days}d`
+  if (weeks < 5) return `${weeks}w`
+  return formatDate(iso)
+}
+
 const INDUSTRIES = ['E-commerce', 'SaaS / Tech', 'Healthcare', 'Finance', 'Real Estate', 'Logistics', 'Education', 'Other']
 const SIZES = ['SMB (1–50)', 'Mid-market (50–500)', 'Enterprise (500+)', 'All sizes']
 
@@ -771,19 +786,29 @@ export default function Dashboard() {
   }
 
   const toggleReveal = async (leadId: string) => {
-    // Mark as revealed immediately so button switches to "Not found" state while loading
+    const lead = leads.find(l => l.lead_id === leadId)
+    if (!lead) return
+    // If already revealed, toggle off
+    if (revealedContacts.has(leadId)) {
+      setRevealedContacts(prev => { const s = new Set(prev); s.delete(leadId); return s })
+      return
+    }
+    // Reveal immediately
     setRevealedContacts(prev => { const s = new Set(prev); s.add(leadId); return s })
-    try {
-      const res = await fetch(`${API}/leads/${leadId}/enrich/`, { method: 'POST' })
-      if (res.ok) {
-        const data = await res.json()
-        setLeads(prev => prev.map(l => l.lead_id === leadId ? {
-          ...l,
-          contact_email: data.contact_email || l.contact_email,
-          contact_phone: data.contact_phone || l.contact_phone,
-        } : l))
-      }
-    } catch {}
+    // Only call Apollo if no contact info extracted from post yet
+    if (!lead.contact_email && !lead.contact_phone) {
+      try {
+        const res = await fetch(`${API}/leads/${leadId}/enrich/`, { method: 'POST' })
+        if (res.ok) {
+          const data = await res.json()
+          setLeads(prev => prev.map(l => l.lead_id === leadId ? {
+            ...l,
+            contact_email: data.contact_email || l.contact_email,
+            contact_phone: data.contact_phone || l.contact_phone,
+          } : l))
+        }
+      } catch {}
+    }
   }
 
   if (!ready) return null
@@ -1036,47 +1061,45 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">{lead.post_text}</p>
 
                   <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-                    {/* Email — show directly if extracted from post, else Apollo reveal for LinkedIn */}
-                    {hasEmail ? (
-                      <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
-                        ✉ {lead.contact_email}
-                      </span>
-                    ) : lead.platform === 'linkedin' ? (
+                    {/* Email — reveal toggle; if no post email, calls Apollo on first reveal */}
+                    {(hasEmail || lead.platform === 'linkedin') && (
                       isRevealed ? (
-                        <span className="font-mono-custom text-xs text-gray-400 border border-gray-100 px-2.5 py-1">
-                          ✉ Not found
-                        </span>
+                        hasEmail ? (
+                          <button onClick={() => toggleReveal(lead.lead_id)} className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
+                            ✉ {lead.contact_email}
+                          </button>
+                        ) : (
+                          <span className="font-mono-custom text-xs text-gray-400 border border-gray-100 px-2.5 py-1">✉ Not found</span>
+                        )
                       ) : (
                         <button
                           onClick={() => toggleReveal(lead.lead_id)}
                           className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
-                          title="Fetch via Apollo"
                         >
                           ✉ Reveal Email
                         </button>
                       )
-                    ) : null}
+                    )}
 
-                    {/* Phone — show directly if extracted from post, else Apollo reveal for LinkedIn */}
-                    {hasPhone ? (
-                      <span className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1">
-                        📞 {lead.contact_phone}
-                      </span>
-                    ) : lead.platform === 'linkedin' ? (
+                    {/* Phone — same pattern */}
+                    {(hasPhone || lead.platform === 'linkedin') && (
                       isRevealed ? (
-                        <span className="font-mono-custom text-xs text-gray-400 border border-gray-100 px-2.5 py-1">
-                          📞 Not found
-                        </span>
+                        hasPhone ? (
+                          <button onClick={() => toggleReveal(lead.lead_id)} className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
+                            📞 {lead.contact_phone}
+                          </button>
+                        ) : (
+                          <span className="font-mono-custom text-xs text-gray-400 border border-gray-100 px-2.5 py-1">📞 Not found</span>
+                        )
                       ) : (
                         <button
                           onClick={() => toggleReveal(lead.lead_id)}
                           className="font-mono-custom text-xs border border-green-400 text-green-600 bg-green-50 px-2.5 py-1 hover:bg-green-100 transition"
-                          title="Fetch via Apollo"
                         >
                           📞 Reveal Phone
                         </button>
                       )
-                    ) : null}
+                    )}
 
                     {/* Token usage badge — internal only, remove before public launch */}
                     {lead.tokens_used ? (
@@ -1084,7 +1107,9 @@ export default function Dashboard() {
                         {lead.tokens_used}t
                       </span>
                     ) : null}
-                    <span className="font-mono-custom text-xs text-gray-300 ml-auto">{formatDate(lead.posted_at || lead.ingested_at)}</span>
+                    <span className="font-mono-custom text-xs text-gray-300 ml-auto" title={formatDate(lead.posted_at || lead.ingested_at)}>
+                      {lead.platform === 'linkedin' ? formatRelativeTime(lead.posted_at) : formatDate(lead.posted_at || lead.ingested_at)}
+                    </span>
                     {lead.source_url && (
                       <button onClick={() => setPreviewLead(lead)} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">
                         View post ↗
