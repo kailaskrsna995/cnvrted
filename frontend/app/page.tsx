@@ -190,15 +190,15 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
     setLoading(false)
   }
 
-  const iCls = 'font-mono-custom w-full border border-black/20 px-3 py-2.5 text-sm outline-none focus:border-black transition bg-white'
-  const lCls = 'font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-2'
+  const iCls = 'font-mono-custom w-full border border-white/20 bg-white/[0.06] text-white placeholder:text-white/20 px-3 py-2.5 text-sm outline-none focus:border-white/50 transition'
+  const lCls = 'font-mono-custom text-xs text-white/40 uppercase tracking-widest block mb-2'
 
   const Chips = ({ opts, sel, onToggle, other, setOther }: { opts: string[]; sel: string[]; onToggle: (v: string) => void; other?: string; setOther?: (v: string) => void }) => (
     <div>
       <div className="flex flex-wrap gap-2">
         {opts.map(o => (
           <button key={o} type="button" onClick={() => onToggle(o)}
-            className={`font-mono-custom text-xs px-3 py-1.5 border transition uppercase tracking-wide ${sel.includes(o) ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}>
+            className={`font-mono-custom text-xs px-3 py-1.5 border transition uppercase tracking-wide ${sel.includes(o) ? 'bg-white text-black border-white' : 'bg-transparent text-white/50 border-white/20 hover:border-white/60'}`}>
             {o}
           </button>
         ))}
@@ -213,15 +213,9 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
   const motives = ['Let\'s understand your business first.', 'This helps us find your exact buyers.', 'Stay with us — almost there.', 'Last step — completely optional but super helpful.']
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] relative overflow-x-hidden">
-      {/* Grain overlay */}
-      <div style={{
-        position:'fixed', inset:'-50%', width:'200%', height:'200%',
-        backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        opacity:0.03, animation:'grain 8s steps(10) infinite', pointerEvents:'none', zIndex:0
-      }} />
+    <div className="min-h-screen bg-black flex flex-col">
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-[#0a0a0a]/95 backdrop-blur border-b border-white/10 px-8 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-black border-b border-white/10 px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
           <span className="font-mono-custom text-[10px] text-white/30 border border-white/20 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
@@ -236,15 +230,14 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
         </div>
       </div>
 
-      <div className="relative z-10 max-w-2xl mx-auto px-6 py-10">
-        <div className="bg-white shadow-2xl px-8 py-10">
-        <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Step {page} of {TOTAL_PAGES} — {stepTitles[page-1]}</p>
-        <h1 className="font-canela text-4xl font-light text-black mb-2">{motives[page-1]}</h1>
-        <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-10">Stay with us — we'll get you the best leads.</p>
+      <div className="max-w-2xl mx-auto px-6 py-12 w-full">
+        <p className="font-mono-custom text-xs text-white/40 uppercase tracking-widest mb-2">Step {page} of {TOTAL_PAGES} — {stepTitles[page-1]}</p>
+        <h1 className="font-canela text-4xl font-light text-white mb-2">{motives[page-1]}</h1>
+        <p className="font-mono-custom text-xs text-white/20 uppercase tracking-widest mb-10">Stay with us — we'll get you the best leads.</p>
 
         {errors.length > 0 && (
-          <div className="mb-6 border border-red-200 bg-red-50 px-4 py-3 flex flex-col gap-1">
-            {errors.map(e => <p key={e} className="font-mono-custom text-xs text-red-600 uppercase tracking-widest">{e}</p>)}
+          <div className="mb-6 border border-red-500/30 bg-red-500/10 px-4 py-3 flex flex-col gap-1">
+            {errors.map(e => <p key={e} className="font-mono-custom text-xs text-red-400 uppercase tracking-widest">{e}</p>)}
           </div>
         )}
 
@@ -274,7 +267,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
                   <option value="">Select size...</option>
                   {COMPANY_SIZES.map(s => <option key={s}>{s}</option>)}
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">▼</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▼</span>
               </div>
             </div>
           </>}
@@ -290,7 +283,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
               <div className="flex gap-3 mb-0">
                 {['Yes', 'No'].map(o => (
                   <button key={o} type="button" onClick={() => set('icpChanged', o === 'Yes')}
-                    className={`font-mono-custom text-xs px-6 py-2 border transition uppercase tracking-wide ${(o === 'Yes' ? a.icpChanged === true : a.icpChanged === false) ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}>
+                    className={`font-mono-custom text-xs px-6 py-2 border transition uppercase tracking-wide ${(o === 'Yes' ? a.icpChanged === true : a.icpChanged === false) ? 'bg-white text-black border-white' : 'bg-transparent text-white/50 border-white/20 hover:border-white/60'}`}>
                     {o}
                   </button>
                 ))}
@@ -321,7 +314,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
                   <option value="">Select sales cycle...</option>
                   {SALES_CYCLES.map(s => <option key={s}>{s}</option>)}
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">▼</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▼</span>
               </div>
             </div>
             <div>
@@ -332,7 +325,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
               <label className={lCls}>Q11 — Point of contact for receiving leads <span className="text-red-400">*</span></label>
               <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
                 <input type="checkbox" checked={a.sameContact} onChange={e => set('sameContact', e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
-                <span className="font-mono-custom text-xs text-gray-600 uppercase tracking-widest">Same as my contact details</span>
+                <span className="font-mono-custom text-xs text-white/60 uppercase tracking-widest">Same as my contact details</span>
               </label>
               {!a.sameContact && (
                 <div className="flex flex-col gap-3">
@@ -347,17 +340,17 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
           {/* ── PAGE 4 ── */}
           {page === 4 && <>
             <div>
-              <label className={lCls}>Q12 — Average deal size <span className="font-canela text-sm text-gray-300 normal-case tracking-normal">Optional</span></label>
+              <label className={lCls}>Q12 — Average deal size <span className="font-canela text-sm text-white/20 normal-case tracking-normal">Optional</span></label>
               <div className="relative">
                 <select value={a.dealSize} onChange={e => set('dealSize', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
                   <option value="">Select deal size...</option>
                   {DEAL_SIZES.map(s => <option key={s}>{s}</option>)}
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">▼</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▼</span>
               </div>
             </div>
             <div>
-              <label className={lCls}>Q13 — 2–3 best-fit existing customers <span className="font-canela text-sm text-gray-300 normal-case tracking-normal">Optional — helps us build lookalike targeting</span></label>
+              <label className={lCls}>Q13 — 2–3 best-fit existing customers <span className="font-canela text-sm text-white/20 normal-case tracking-normal">Optional — helps us build lookalike targeting</span></label>
               <input type="text" value={a.bestCustomers} onChange={e => set('bestCustomers', e.target.value)} placeholder="e.g. Freshworks, Razorpay, Postman" className={iCls} />
             </div>
             <div>
@@ -365,39 +358,38 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
               <div className="flex gap-3">
                 {['Yes', 'No'].map(o => (
                   <button key={o} type="button" onClick={() => set('includeNews', o === 'Yes')}
-                    className={`font-mono-custom text-xs px-6 py-2 border transition uppercase tracking-wide ${(o === 'Yes' ? a.includeNews : !a.includeNews) ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}>
+                    className={`font-mono-custom text-xs px-6 py-2 border transition uppercase tracking-wide ${(o === 'Yes' ? a.includeNews : !a.includeNews) ? 'bg-white text-black border-white' : 'bg-transparent text-white/50 border-white/20 hover:border-white/60'}`}>
                     {o}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="border-l-2 border-black pl-4 py-1">
-              <p className="font-canela text-lg text-black">Your feed will be live in minutes.</p>
-              <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mt-1">Stay with us — we'll get you the best leads.</p>
+            <div className="border-l-2 border-white/30 pl-4 py-1">
+              <p className="font-canela text-lg text-white">Your feed will be live in minutes.</p>
+              <p className="font-mono-custom text-xs text-white/40 uppercase tracking-widest mt-1">Stay with us — we'll get you the best leads.</p>
             </div>
           </>}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between pt-6 border-t border-black/10 mt-2">
+          <div className="flex items-center justify-between pt-6 border-t border-white/10 mt-2">
             <button onClick={back} disabled={page === 1}
-              className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest hover:text-black transition disabled:opacity-0 disabled:pointer-events-none">
+              className="font-mono-custom text-xs text-white/40 uppercase tracking-widest hover:text-white transition disabled:opacity-0 disabled:pointer-events-none">
               ← Back
             </button>
             <div className="flex items-center gap-4">
-              <span className="font-mono-custom text-xs text-gray-300">{answered} / 14</span>
+              <span className="font-mono-custom text-xs text-white/30">{answered} / 14</span>
               {page < TOTAL_PAGES ? (
-                <button onClick={next} className="font-mono-custom border border-black bg-black text-white text-xs px-6 py-2.5 uppercase tracking-widest hover:bg-gray-900 transition">
+                <button onClick={next} className="font-mono-custom bg-white text-black text-xs px-6 py-2.5 uppercase tracking-widest hover:bg-white/90 transition">
                   Next →
                 </button>
               ) : (
-                <button onClick={submit} disabled={loading} className="font-mono-custom border border-black bg-black text-white text-xs px-6 py-2.5 uppercase tracking-widest hover:bg-gray-900 transition disabled:opacity-40">
+                <button onClick={submit} disabled={loading} className="font-mono-custom bg-white text-black text-xs px-6 py-2.5 uppercase tracking-widest hover:bg-white/90 transition disabled:opacity-40">
                   {loading ? 'Saving...' : 'Build my feed →'}
                 </button>
               )}
             </div>
           </div>
 
-        </div>
         </div>
       </div>
     </div>
@@ -512,21 +504,7 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   }
 
   return (
-    <div className="h-screen bg-black overflow-hidden relative flex flex-col">
-      {/* Grain */}
-      <div style={{
-        position:'absolute', inset:'-50%', width:'200%', height:'200%',
-        backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        opacity:0.045, animation:'grain 8s steps(10) infinite', pointerEvents:'none', zIndex:0
-      }} />
-      {/* Radial glow */}
-      <div style={{
-        position:'absolute', top:'45%', left:'50%',
-        width:'80%', height:'80%',
-        background:'radial-gradient(circle, rgba(255,255,255,0.055) 0%, transparent 70%)',
-        transform:'translate(-50%,-50%)',
-        animation:'glow-drift 14s ease-in-out infinite', pointerEvents:'none', zIndex:0
-      }} />
+    <div className="h-screen bg-black flex flex-col">
 
       {/* Top bar */}
       <div className="relative z-10 flex items-center justify-between px-10 py-7">
