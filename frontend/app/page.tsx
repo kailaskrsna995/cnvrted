@@ -213,21 +213,31 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
   const motives = ['Let\'s understand your business first.', 'This helps us find your exact buyers.', 'Stay with us — almost there.', 'Last step — completely optional but super helpful.']
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#0a0a0a] relative overflow-x-hidden">
+      {/* Grain overlay */}
+      <div style={{
+        position:'fixed', inset:'-50%', width:'200%', height:'200%',
+        backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        opacity:0.03, animation:'grain 8s steps(10) infinite', pointerEvents:'none', zIndex:0
+      }} />
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-black/10 px-8 py-4 flex items-center justify-between">
-        <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black">cnvrted</span>
+      <div className="sticky top-0 z-10 bg-[#0a0a0a]/95 backdrop-blur border-b border-white/10 px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
+          <span className="font-mono-custom text-[10px] text-white/30 border border-white/20 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
+        </div>
         <div className="flex items-center gap-6">
-          <span className="font-mono-custom text-xs text-gray-400">{answered} / 14 answered</span>
+          <span className="font-mono-custom text-xs text-white/40">{answered} / 14 answered</span>
           <div className="flex items-center gap-1.5">
             {[1,2,3,4].map(i => (
-              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i <= page ? 'bg-black' : 'bg-gray-200'} ${i === page ? 'w-8' : 'w-3'}`} />
+              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i <= page ? 'bg-white' : 'bg-white/20'} ${i === page ? 'w-8' : 'w-3'}`} />
             ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-12">
+      <div className="relative z-10 max-w-2xl mx-auto px-6 py-10">
+        <div className="bg-white shadow-2xl px-8 py-10">
         <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Step {page} of {TOTAL_PAGES} — {stepTitles[page-1]}</p>
         <h1 className="font-canela text-4xl font-light text-black mb-2">{motives[page-1]}</h1>
         <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-10">Stay with us — we'll get you the best leads.</p>
@@ -388,6 +398,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
           </div>
 
         </div>
+        </div>
       </div>
     </div>
   )
@@ -453,22 +464,6 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const rightPanelRef = useRef<HTMLDivElement>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const panel = rightPanelRef.current
-    const grid = gridRef.current
-    if (!panel || !grid) return
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = panel.getBoundingClientRect()
-      const x = (e.clientX - rect.left) / rect.width - 0.5
-      const y = (e.clientY - rect.top) / rect.height - 0.5
-      grid.style.transform = `translate(${x * 10}px, ${y * 10}px)`
-    }
-    panel.addEventListener('mousemove', handleMouseMove)
-    return () => panel.removeEventListener('mousemove', handleMouseMove)
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -517,137 +512,105 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
   }
 
   return (
-    <>
-      <style>{`
-        @keyframes grain {
-          0%,100% { transform: translate(0,0) }
-          10% { transform: translate(-2%,-1%) }
-          20% { transform: translate(1%,2%) }
-          30% { transform: translate(-1%,1%) }
-          40% { transform: translate(2%,-2%) }
-          50% { transform: translate(-1%,2%) }
-          60% { transform: translate(1%,-1%) }
-          70% { transform: translate(-2%,1%) }
-          80% { transform: translate(2%,2%) }
-          90% { transform: translate(-1%,-2%) }
-        }
-        @keyframes glow-drift {
-          0%,100% { transform: translate(-50%,-50%) scale(1) }
-          33% { transform: translate(-44%,-56%) scale(1.06) }
-          66% { transform: translate(-56%,-44%) scale(0.95) }
-        }
-        @keyframes breathe {
-          0%,100% { opacity: 0.08 }
-          50% { opacity: 0.18 }
-        }
-      `}</style>
-      <div className="h-screen flex">
+    <div className="h-screen bg-black overflow-hidden relative flex flex-col">
+      {/* Grain */}
+      <div style={{
+        position:'absolute', inset:'-50%', width:'200%', height:'200%',
+        backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        opacity:0.045, animation:'grain 8s steps(10) infinite', pointerEvents:'none', zIndex:0
+      }} />
+      {/* Radial glow */}
+      <div style={{
+        position:'absolute', top:'45%', left:'50%',
+        width:'80%', height:'80%',
+        background:'radial-gradient(circle, rgba(255,255,255,0.055) 0%, transparent 70%)',
+        transform:'translate(-50%,-50%)',
+        animation:'glow-drift 14s ease-in-out infinite', pointerEvents:'none', zIndex:0
+      }} />
 
-        {/* Left — black brand panel */}
-        <div className="relative w-1/2 flex flex-col justify-between p-12 bg-black overflow-hidden">
-          {/* Grain */}
-          <div style={{
-            position:'absolute', inset:'-50%', width:'200%', height:'200%',
-            backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-            opacity:0.045, animation:'grain 8s steps(10) infinite', pointerEvents:'none'
-          }} />
-          {/* Radial glow */}
-          <div style={{
-            position:'absolute', top:'50%', left:'45%',
-            width:'70%', height:'70%',
-            background:'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)',
-            animation:'glow-drift 14s ease-in-out infinite', pointerEvents:'none'
-          }} />
-          {/* Breathing blur */}
-          <div style={{
-            position:'absolute', inset:0,
-            backdropFilter:'blur(0.4px)',
-            animation:'breathe 7s ease-in-out infinite', pointerEvents:'none'
-          }} />
-
-          <span className="relative font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
-          <div className="relative">
-            <h1 className="font-canela text-5xl font-light text-white leading-tight mb-4">
-              Your buyers are<br />already talking.
-            </h1>
-            <p className="font-mono-custom text-xs text-white/40 uppercase tracking-widest leading-relaxed">
-              Intent signals from LinkedIn,<br />scored by AI in real time
-            </p>
-          </div>
-          <p className="relative font-mono-custom text-xs text-white/20 uppercase tracking-widest">Est. 2026</p>
+      {/* Top bar */}
+      <div className="relative z-10 flex items-center justify-between px-10 py-7">
+        <div className="flex items-center gap-2.5">
+          <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-white">cnvrted</span>
+          <span className="font-mono-custom text-[10px] text-white/30 border border-white/20 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
         </div>
-
-        {/* Right — form */}
-        <div ref={rightPanelRef} className="relative w-1/2 flex items-center justify-center bg-white overflow-hidden">
-          {/* Parallax grid */}
-          <div ref={gridRef} className="absolute inset-[-10%] w-[120%] h-[120%] grid-bg transition-transform duration-100 ease-out" style={{ opacity:0.55 }} />
-
-          <div className="relative w-full max-w-sm px-8">
-            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Get started</p>
-            <h2 className="font-canela text-3xl font-light text-black mb-8">Set up your workspace.</h2>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
-              <div>
-                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Work Email</label>
-                <input
-                  type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  placeholder="e.g. name@cnvrted.com" autoFocus
-                  className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
-                />
-              </div>
-
-              <div>
-                <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-1.5">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'} value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Choose a password"
-                    className="font-canela text-base w-full border border-black/20 bg-white/90 px-3 py-2 pr-10 outline-none focus:border-black focus:-translate-y-px transition-all duration-150"
-                  />
-                  <button
-                    type="button" tabIndex={-1}
-                    onClick={() => setShowPassword(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-black transition-colors duration-150"
-                  >
-                    {showPassword ? (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                        <line x1="1" y1="1" x2="23" y2="23"/>
-                      </svg>
-                    ) : (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <p className={`font-mono-custom text-xs uppercase tracking-widest ${error.startsWith('Restricted') ? 'text-red-600 font-bold' : 'text-red-500'}`}>
-                  {error}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={!username.trim() || !password.trim() || loading}
-                className="font-mono-custom mt-2 w-full border border-black bg-black text-white text-xs px-3 py-2.5 uppercase tracking-widest hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-md transition-all duration-150 disabled:opacity-40 disabled:translate-y-0 disabled:shadow-none"
-              >
-                {loading ? 'Setting up...' : 'Enter →'}
-              </button>
-
-              <p className="font-mono-custom text-xs text-gray-400 text-center">
-                Returning? Enter your email + password to sign back in.
-              </p>
-            </form>
-          </div>
-        </div>
-
       </div>
-    </>
+
+      {/* Centered form */}
+      <div className="relative z-10 flex-1 flex items-center justify-center px-8">
+        <div className="w-full max-w-sm">
+          <p className="font-mono-custom text-xs text-white/30 uppercase tracking-widest mb-3">Get started</p>
+          <h2 className="font-canela text-4xl font-light text-white mb-10 leading-tight">
+            Set up your<br />workspace.
+          </h2>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+
+            <div>
+              <label className="font-mono-custom text-xs text-white/40 uppercase tracking-widest block mb-2">Work Email</label>
+              <input
+                type="text" value={username} onChange={e => setUsername(e.target.value)}
+                placeholder="e.g. name@cnvrted.com" autoFocus
+                className="font-canela text-base w-full border border-white/20 bg-white/[0.06] text-white placeholder:text-white/20 px-4 py-3 outline-none focus:border-white/50 transition-all duration-150"
+              />
+            </div>
+
+            <div>
+              <label className="font-mono-custom text-xs text-white/40 uppercase tracking-widest block mb-2">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Choose a password"
+                  className="font-canela text-base w-full border border-white/20 bg-white/[0.06] text-white placeholder:text-white/20 px-4 py-3 pr-10 outline-none focus:border-white/50 transition-all duration-150"
+                />
+                <button
+                  type="button" tabIndex={-1}
+                  onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 transition-colors duration-150"
+                >
+                  {showPassword ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p className={`font-mono-custom text-xs uppercase tracking-widest ${error.startsWith('Restricted') ? 'text-red-400 font-bold' : 'text-red-400'}`}>
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={!username.trim() || !password.trim() || loading}
+              className="font-mono-custom mt-1 w-full bg-white text-black text-xs px-3 py-3 uppercase tracking-widest hover:bg-white/90 hover:-translate-y-0.5 transition-all duration-150 disabled:opacity-30 disabled:translate-y-0"
+            >
+              {loading ? 'Setting up...' : 'Enter →'}
+            </button>
+
+            <p className="font-mono-custom text-xs text-white/20 text-center">
+              Returning? Enter your email + password to sign back in.
+            </p>
+          </form>
+        </div>
+      </div>
+
+      {/* Bottom tagline */}
+      <div className="relative z-10 px-10 py-7">
+        <p className="font-mono-custom text-xs text-white/15 uppercase tracking-widest">
+          Intent signals from LinkedIn & X, scored by AI in real time · Est. 2026
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -1052,7 +1015,10 @@ export default function Dashboard() {
       {/* Sidebar */}
       <aside className="w-52 border-r border-black/10 bg-white/80 backdrop-blur flex flex-col h-screen shrink-0">
         <div className="px-5 py-5 border-b border-black/10">
-          <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black">cnvrted</span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black">cnvrted</span>
+            <span className="font-mono-custom text-[9px] text-gray-300 border border-black/10 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
+          </div>
         </div>
 
         <div className="px-4 pt-4">
