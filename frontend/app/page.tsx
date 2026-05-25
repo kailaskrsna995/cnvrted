@@ -209,7 +209,7 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
               rel="noopener noreferrer"
               className="font-mono-custom text-xs border border-black bg-black text-white px-4 py-2 hover:bg-gray-900 transition"
             >
-              Open on LinkedIn ↗
+              {lead.platform === 'reddit' ? 'Open on Reddit ↗' : lead.platform === 'twitter' ? 'Open on X ↗' : 'Open on LinkedIn ↗'}
             </a>
           ) : (
             <span className="font-mono-custom text-xs text-gray-300">No source URL</span>
@@ -889,8 +889,8 @@ export default function Dashboard() {
             </button>
             {scanning && (
               <button
-                onClick={async () => {
-                  await fetch(`${API}/ingest/stop/`, { method: 'POST' })
+                onClick={() => {
+                  fetch(`${API}/ingest/stop/`, { method: 'POST' }).catch(() => {})
                   setScanning(false)
                   if (scanPollRef.current) { clearInterval(scanPollRef.current); scanPollRef.current = null }
                 }}
