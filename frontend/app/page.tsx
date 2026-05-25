@@ -757,6 +757,9 @@ export default function Dashboard() {
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
   const [previewLead, setPreviewLead] = useState<Lead | null>(null)
+  const [revealedContacts, setRevealedContacts] = useState<Set<string>>(new Set())
+  const toggleReveal = (leadId: string) =>
+    setRevealedContacts(prev => { const s = new Set(prev); s.has(leadId) ? s.delete(leadId) : s.add(leadId); return s })
   const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Cleanup poll on unmount
@@ -1171,6 +1174,7 @@ export default function Dashboard() {
             {leads.map(lead => {
               const hasEmail = !!lead.contact_email
               const hasPhone = !!lead.contact_phone
+              const isRevealed = revealedContacts.has(lead.lead_id)
               return (
                 <div key={lead.id} className="bg-white border border-black/10 p-6 hover:border-black/30 hover:shadow-md transition">
                   <div className="flex items-start justify-between mb-4">
@@ -1240,20 +1244,34 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
                     {/* Email */}
                     {hasEmail ? (
-                      <a href={`mailto:${lead.contact_email}`}
-                        className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
-                        ✉ {lead.contact_email}
-                      </a>
+                      isRevealed ? (
+                        <a href={`mailto:${lead.contact_email}`}
+                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
+                          ✉ {lead.contact_email}
+                        </a>
+                      ) : (
+                        <button onClick={() => toggleReveal(lead.lead_id)}
+                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
+                          ✉ Reveal Email
+                        </button>
+                      )
                     ) : (
                       <span className="font-mono-custom text-xs text-red-300 border border-red-100 px-2.5 py-1">✉ No email</span>
                     )}
 
                     {/* Phone */}
                     {hasPhone ? (
-                      <a href={`tel:${lead.contact_phone}`}
-                        className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
-                        📞 {lead.contact_phone}
-                      </a>
+                      isRevealed ? (
+                        <a href={`tel:${lead.contact_phone}`}
+                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
+                          📞 {lead.contact_phone}
+                        </a>
+                      ) : (
+                        <button onClick={() => toggleReveal(lead.lead_id)}
+                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
+                          📞 Reveal Phone
+                        </button>
+                      )
                     ) : (
                       <span className="font-mono-custom text-xs text-red-300 border border-red-100 px-2.5 py-1">📞 No phone</span>
                     )}
