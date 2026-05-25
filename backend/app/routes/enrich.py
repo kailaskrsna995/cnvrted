@@ -51,7 +51,7 @@ async def enrich_lead(lead_id: str):
         "first_name": first_name,
         "last_name": last_name,
         "reveal_personal_emails": True,
-        "reveal_phone_number": True,
+        # reveal_phone_number requires a webhook_url — not supported in sync mode
     }
     if company:
         payload["organization_name"] = company

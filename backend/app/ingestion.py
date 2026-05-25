@@ -345,11 +345,14 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
 
 
 async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
+    from datetime import datetime as _dt, timedelta as _td
+    since_date = (_dt.utcnow() - _td(days=4)).strftime("%Y-%m-%d")
     raw_items = await _run_apify_actor(client, TWITTER_ACTOR, {
         "searchTerms": [keyword],
         "sort": "Latest",
         "tweetLanguage": "en",
-        "maxItems": 20,
+        "maxItems": 25,
+        "since": since_date,
     }, "Twitter")
     print(f"[Twitter] '{keyword}' returned {len(raw_items)} posts")
     normalised = []
