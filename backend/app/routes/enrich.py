@@ -27,6 +27,14 @@ async def enrich_lead(lead_id: str):
 
     lead = result.data[0]
 
+    # Only enrich LinkedIn leads
+    if lead.get("platform", "linkedin") != "linkedin":
+        return {
+            "contact_email": lead.get("contact_email", ""),
+            "contact_phone": lead.get("contact_phone", ""),
+            "cached": True
+        }
+
     # Return cached data if already enriched
     if lead.get("contact_email") or lead.get("contact_phone"):
         return {
