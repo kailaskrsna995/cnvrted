@@ -80,110 +80,291 @@ function formatRelativeTime(iso: string | null): string {
   return formatDate(iso)
 }
 
-const INDUSTRIES = ['E-commerce', 'SaaS / Tech', 'Healthcare', 'Finance', 'Real Estate', 'Logistics', 'Education', 'Other']
-const SIZES = ['SMB (1–50)', 'Mid-market (50–500)', 'Enterprise (500+)', 'All sizes']
+// ── Onboarding Questionnaire ──────────────────────────────────────────────────
 
-function PreferencesScreen({ userId, onComplete }: {
+const GTM_OPTIONS = ['Outbound (cold email/LinkedIn)', 'Inbound (content, SEO)', 'Product-led growth', 'Paid ads', 'Partnerships & referrals', 'Community-led', 'Events & conferences', 'Other']
+const ACQUISITION_OPTIONS = ['Cold outreach', 'Organic content', 'Paid acquisition', 'Word of mouth', 'Marketplace/directory listings', 'Inbound demo requests', 'Other']
+const COMPANY_SIZES = ['1–10', '11–50', '51–200', '201–1000', '1000+']
+const SALES_CYCLES = ['Less than 2 weeks', '2–4 weeks', '1–3 months', '3–6 months', '6+ months']
+const DEAL_SIZES = ['Under $1K', '$1K – $5K', '$5K – $25K', '$25K – $100K', '$100K+']
+
+type OA = {
+  companyName: string; email: string; phone: string; companyDo: string; companySize: string
+  icp: string; icpChanged: boolean | null; icpChangedHow: string; gtmMotions: string[]; gtmOtherText: string
+  acquisition: string[]; acquisitionOtherText: string; salesCycle: string; competitors: string
+  sameContact: boolean; contactName: string; contactRole: string; contactEmail: string
+  dealSize: string; bestCustomers: string; includeNews: boolean
+}
+
+function OnboardingQuestionnaire({ userId, onComplete }: {
   userId: string
   onComplete: (serviceOffering: string, industries: string[]) => void
 }) {
-  const [serviceOffering, setServiceOffering] = useState('')
-  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([])
-  const [companySize, setCompanySize] = useState('')
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<string[]>([])
+  const TOTAL_PAGES = 4
 
-  const toggleIndustry = (ind: string) => {
-    setSelectedIndustries(prev =>
-      prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind]
-    )
+  const [a, setA] = useState<OA>({
+    companyName: '', email: '', phone: '', companyDo: '', companySize: '',
+    icp: '', icpChanged: null, icpChangedHow: '', gtmMotions: [], gtmOtherText: '',
+    acquisition: [], acquisitionOtherText: '', salesCycle: '', competitors: '',
+    sameContact: true, contactName: '', contactRole: '', contactEmail: '',
+    dealSize: '', bestCustomers: '', includeNews: true,
+  })
+
+  const set = (f: keyof OA, v: OA[keyof OA]) => setA(p => ({ ...p, [f]: v }))
+  const toggleArr = (f: 'gtmMotions' | 'acquisition', v: string) =>
+    setA(p => ({ ...p, [f]: (p[f] as string[]).includes(v) ? (p[f] as string[]).filter(x => x !== v) : [...(p[f] as string[]), v] }))
+
+  const answered = [
+    a.companyName.trim(), a.email.trim(), a.companyDo.trim(), a.companySize,
+    a.icp.trim(), a.icpChanged !== null ? 'y' : '',
+    a.gtmMotions.length ? 'y' : '', a.acquisition.length ? 'y' : '',
+    a.salesCycle, a.competitors.trim(),
+    a.sameContact || a.contactEmail.trim() ? 'y' : '',
+    a.dealSize || 'opt', a.bestCustomers || 'opt', 'news',
+  ].filter(Boolean).length
+
+  const validate = () => {
+    const e: string[] = []
+    if (page === 1) {
+      if (!a.companyName.trim()) e.push('Company name is required')
+      if (!a.email.trim()) e.push('Email is required')
+      if (!a.companyDo.trim()) e.push('Tell us what your company does')
+      if (!a.companySize) e.push('Company size is required')
+    }
+    if (page === 2) {
+      if (!a.icp.trim()) e.push('ICP description is required')
+      if (a.icpChanged === null) e.push('Please answer whether your ICP has changed')
+      if (a.icpChanged && !a.icpChangedHow.trim()) e.push('Please describe how your ICP changed')
+      if (!a.gtmMotions.length) e.push('Select at least one go-to-market motion')
+    }
+    if (page === 3) {
+      if (!a.acquisition.length) e.push('Select at least one acquisition channel')
+      if (!a.salesCycle) e.push('Sales cycle length is required')
+      if (!a.competitors.trim()) e.push('Competitors are required')
+      if (!a.sameContact && !a.contactEmail.trim()) e.push('Contact email is required')
+    }
+    setErrors(e)
+    return e.length === 0
   }
 
-  const handleSubmit = async () => {
-    if (!serviceOffering.trim() || !companySize || loading) return
+  const next = () => { if (!validate()) return; setErrors([]); setPage(p => p + 1); window.scrollTo(0, 0) }
+  const back = () => { setErrors([]); setPage(p => p - 1) }
+
+  const submit = async () => {
+    if (!validate()) return
     setLoading(true)
     try {
       await fetch(`${API}/users/${userId}/preferences/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_offering: serviceOffering.trim(),
-          target_industries: selectedIndustries,
-          company_size: companySize,
-        })
+        body: JSON.stringify({ service_offering: a.companyDo.trim(), target_industries: [a.icp.trim()], company_size: a.companySize })
       })
     } catch {}
-    onComplete(serviceOffering.trim(), selectedIndustries)
+    onComplete(a.companyDo.trim(), [a.icp.trim()])
     setLoading(false)
   }
 
+  const iCls = 'font-mono-custom w-full border border-black/20 px-3 py-2.5 text-sm outline-none focus:border-black transition bg-white'
+  const lCls = 'font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-2'
+
+  const Chips = ({ opts, sel, onToggle, other, setOther }: { opts: string[]; sel: string[]; onToggle: (v: string) => void; other?: string; setOther?: (v: string) => void }) => (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {opts.map(o => (
+          <button key={o} type="button" onClick={() => onToggle(o)}
+            className={`font-mono-custom text-xs px-3 py-1.5 border transition uppercase tracking-wide ${sel.includes(o) ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}>
+            {o}
+          </button>
+        ))}
+      </div>
+      {sel.includes('Other') && setOther && (
+        <input type="text" value={other || ''} onChange={e => setOther(e.target.value)} placeholder="Please specify..." className={iCls + ' mt-2'} />
+      )}
+    </div>
+  )
+
+  const stepTitles = ['Company Info', 'ICP & Targeting', 'Sales Process', 'Optional Details']
+  const motives = ['Let\'s understand your business first.', 'This helps us find your exact buyers.', 'Stay with us — almost there.', 'Last step — completely optional but super helpful.']
+
   return (
-    <div className="h-screen bg-white flex flex-col items-center justify-center px-8">
-      <div className="w-full max-w-lg">
-        <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black block mb-10">cnvrted</span>
-        <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">One-time setup</p>
-        <h1 className="font-canela text-4xl font-light text-black mb-10">Personalise your feed.</h1>
-
-        <div className="mb-8">
-          <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-3">
-            What service do you offer?
-          </label>
-          <input
-            type="text"
-            value={serviceOffering}
-            onChange={e => setServiceOffering(e.target.value)}
-            placeholder="e.g. AI automation agency, Facebook ads, SaaS development"
-            autoFocus
-            className="font-canela text-base w-full border border-black/20 bg-white px-3 py-2.5 outline-none focus:border-black transition-all duration-150"
-          />
-        </div>
-
-        <div className="mb-8">
-          <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-3">
-            Who are your ideal clients? <span className="text-gray-300 normal-case">(select all that apply)</span>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {INDUSTRIES.map(ind => (
-              <button
-                key={ind}
-                onClick={() => toggleIndustry(ind)}
-                className={`font-mono-custom text-xs px-3 py-1.5 border transition-all duration-150 uppercase tracking-wide
-                  ${selectedIndustries.includes(ind)
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}
-              >
-                {ind}
-              </button>
+    <div className="min-h-screen bg-white">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-black/10 px-8 py-4 flex items-center justify-between">
+        <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black">cnvrted</span>
+        <div className="flex items-center gap-6">
+          <span className="font-mono-custom text-xs text-gray-400">{answered} / 14 answered</span>
+          <div className="flex items-center gap-1.5">
+            {[1,2,3,4].map(i => (
+              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i <= page ? 'bg-black' : 'bg-gray-200'} ${i === page ? 'w-8' : 'w-3'}`} />
             ))}
           </div>
         </div>
+      </div>
 
-        <div className="mb-10">
-          <label className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest block mb-3">
-            What size companies do you target?
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {SIZES.map(size => (
-              <button
-                key={size}
-                onClick={() => setCompanySize(size)}
-                className={`font-mono-custom text-xs px-3 py-1.5 border transition-all duration-150 uppercase tracking-wide
-                  ${companySize === size
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}
-              >
-                {size}
-              </button>
-            ))}
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-2">Step {page} of {TOTAL_PAGES} — {stepTitles[page-1]}</p>
+        <h1 className="font-canela text-4xl font-light text-black mb-2">{motives[page-1]}</h1>
+        <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-10">Stay with us — we'll get you the best leads.</p>
+
+        {errors.length > 0 && (
+          <div className="mb-6 border border-red-200 bg-red-50 px-4 py-3 flex flex-col gap-1">
+            {errors.map(e => <p key={e} className="font-mono-custom text-xs text-red-600 uppercase tracking-widest">{e}</p>)}
           </div>
-        </div>
+        )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={!serviceOffering.trim() || !companySize || loading}
-          className="font-mono-custom w-full border border-black bg-black text-white text-xs px-3 py-2.5 uppercase tracking-widest hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-md transition-all duration-150 disabled:opacity-40 disabled:translate-y-0 disabled:shadow-none"
-        >
-          {loading ? 'Saving...' : 'Build my feed →'}
-        </button>
+        <div className="flex flex-col gap-8">
+
+          {/* ── PAGE 1 ── */}
+          {page === 1 && <>
+            <div>
+              <label className={lCls}>Q1 — Company Name <span className="text-red-400">*</span></label>
+              <input type="text" value={a.companyName} onChange={e => set('companyName', e.target.value)} placeholder="e.g. Acme Inc." autoFocus className={iCls} />
+            </div>
+            <div>
+              <label className={lCls}>Q2 — Your Contact <span className="text-red-400">*</span></label>
+              <div className="flex gap-3">
+                <input type="email" value={a.email} onChange={e => set('email', e.target.value)} placeholder="you@company.com" className={iCls} />
+                <input type="tel" value={a.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 98765 43210 (optional)" className={iCls} />
+              </div>
+            </div>
+            <div>
+              <label className={lCls}>Q3 — What does your company do? <span className="text-red-400">*</span></label>
+              <input type="text" value={a.companyDo} onChange={e => set('companyDo', e.target.value)} placeholder="e.g. We help D2C brands automate their email marketing" className={iCls} />
+            </div>
+            <div>
+              <label className={lCls}>Q4 — Company Size <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <select value={a.companySize} onChange={e => set('companySize', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
+                  <option value="">Select size...</option>
+                  {COMPANY_SIZES.map(s => <option key={s}>{s}</option>)}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">▼</span>
+              </div>
+            </div>
+          </>}
+
+          {/* ── PAGE 2 ── */}
+          {page === 2 && <>
+            <div>
+              <label className={lCls}>Q5 — Who is your Ideal Customer Profile (ICP)? <span className="text-red-400">*</span></label>
+              <textarea value={a.icp} onChange={e => set('icp', e.target.value)} placeholder="e.g. VP of Marketing at B2B SaaS companies, 50–200 employees, US-based, using HubSpot" className={iCls + ' resize-none'} rows={3} />
+            </div>
+            <div>
+              <label className={lCls}>Q6 — Has your ICP changed in the last 6–12 months? <span className="text-red-400">*</span></label>
+              <div className="flex gap-3 mb-0">
+                {['Yes', 'No'].map(o => (
+                  <button key={o} type="button" onClick={() => set('icpChanged', o === 'Yes')}
+                    className={`font-mono-custom text-xs px-6 py-2 border transition uppercase tracking-wide ${(o === 'Yes' ? a.icpChanged === true : a.icpChanged === false) ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+              {a.icpChanged === true && (
+                <div className="mt-4">
+                  <label className={lCls}>Q6a — How did it change and why? <span className="text-red-400">*</span></label>
+                  <textarea value={a.icpChangedHow} onChange={e => set('icpChangedHow', e.target.value)} placeholder="e.g. We shifted from targeting SMBs to mid-market because of higher retention rates" className={iCls + ' resize-none'} rows={2} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label className={lCls}>Q7 — Current go-to-market motions <span className="text-red-400">*</span></label>
+              <Chips opts={GTM_OPTIONS} sel={a.gtmMotions} onToggle={v => toggleArr('gtmMotions', v)} other={a.gtmOtherText} setOther={v => set('gtmOtherText', v)} />
+            </div>
+          </>}
+
+          {/* ── PAGE 3 ── */}
+          {page === 3 && <>
+            <div>
+              <label className={lCls}>Q8 — How do you currently acquire customers? <span className="text-red-400">*</span></label>
+              <Chips opts={ACQUISITION_OPTIONS} sel={a.acquisition} onToggle={v => toggleArr('acquisition', v)} other={a.acquisitionOtherText} setOther={v => set('acquisitionOtherText', v)} />
+            </div>
+            <div>
+              <label className={lCls}>Q9 — Typical sales cycle <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <select value={a.salesCycle} onChange={e => set('salesCycle', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
+                  <option value="">Select sales cycle...</option>
+                  {SALES_CYCLES.map(s => <option key={s}>{s}</option>)}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">▼</span>
+              </div>
+            </div>
+            <div>
+              <label className={lCls}>Q10 — Main competitors <span className="text-red-400">*</span></label>
+              <input type="text" value={a.competitors} onChange={e => set('competitors', e.target.value)} placeholder="e.g. Apollo.io, Prospeo, Lusha" className={iCls} />
+            </div>
+            <div>
+              <label className={lCls}>Q11 — Point of contact for receiving leads <span className="text-red-400">*</span></label>
+              <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
+                <input type="checkbox" checked={a.sameContact} onChange={e => set('sameContact', e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
+                <span className="font-mono-custom text-xs text-gray-600 uppercase tracking-widest">Same as my contact details</span>
+              </label>
+              {!a.sameContact && (
+                <div className="flex flex-col gap-3">
+                  <input type="text" value={a.contactName} onChange={e => set('contactName', e.target.value)} placeholder="Full Name" className={iCls} />
+                  <input type="text" value={a.contactRole} onChange={e => set('contactRole', e.target.value)} placeholder="Role (e.g. Head of Sales, CEO)" className={iCls} />
+                  <input type="email" value={a.contactEmail} onChange={e => set('contactEmail', e.target.value)} placeholder="Email address" className={iCls} />
+                </div>
+              )}
+            </div>
+          </>}
+
+          {/* ── PAGE 4 ── */}
+          {page === 4 && <>
+            <div>
+              <label className={lCls}>Q12 — Average deal size <span className="font-canela text-sm text-gray-300 normal-case tracking-normal">Optional</span></label>
+              <div className="relative">
+                <select value={a.dealSize} onChange={e => set('dealSize', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
+                  <option value="">Select deal size...</option>
+                  {DEAL_SIZES.map(s => <option key={s}>{s}</option>)}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">▼</span>
+              </div>
+            </div>
+            <div>
+              <label className={lCls}>Q13 — 2–3 best-fit existing customers <span className="font-canela text-sm text-gray-300 normal-case tracking-normal">Optional — helps us build lookalike targeting</span></label>
+              <input type="text" value={a.bestCustomers} onChange={e => set('bestCustomers', e.target.value)} placeholder="e.g. Freshworks, Razorpay, Postman" className={iCls} />
+            </div>
+            <div>
+              <label className={lCls}>Q14 — Include latest company news in lead enrichment? <span className="text-red-400">*</span></label>
+              <div className="flex gap-3">
+                {['Yes', 'No'].map(o => (
+                  <button key={o} type="button" onClick={() => set('includeNews', o === 'Yes')}
+                    className={`font-mono-custom text-xs px-6 py-2 border transition uppercase tracking-wide ${(o === 'Yes' ? a.includeNews : !a.includeNews) ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-black/20 hover:border-black'}`}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="border-l-2 border-black pl-4 py-1">
+              <p className="font-canela text-lg text-black">Your feed will be live in minutes.</p>
+              <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mt-1">Stay with us — we'll get you the best leads.</p>
+            </div>
+          </>}
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between pt-6 border-t border-black/10 mt-2">
+            <button onClick={back} disabled={page === 1}
+              className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest hover:text-black transition disabled:opacity-0 disabled:pointer-events-none">
+              ← Back
+            </button>
+            <div className="flex items-center gap-4">
+              <span className="font-mono-custom text-xs text-gray-300">{answered} / 14</span>
+              {page < TOTAL_PAGES ? (
+                <button onClick={next} className="font-mono-custom border border-black bg-black text-white text-xs px-6 py-2.5 uppercase tracking-widest hover:bg-gray-900 transition">
+                  Next →
+                </button>
+              ) : (
+                <button onClick={submit} disabled={loading} className="font-mono-custom border border-black bg-black text-white text-xs px-6 py-2.5 uppercase tracking-widest hover:bg-gray-900 transition disabled:opacity-40">
+                  {loading ? 'Saving...' : 'Build my feed →'}
+                </button>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   )
@@ -821,7 +1002,7 @@ export default function Dashboard() {
   if (preferencesSet === null) return null
   if (!preferencesSet) {
     return (
-      <PreferencesScreen
+      <OnboardingQuestionnaire
         userId={userId}
         onComplete={async (serviceOffering, industries) => {
           setPreferencesSet(true)
