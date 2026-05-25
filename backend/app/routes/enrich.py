@@ -52,6 +52,8 @@ async def enrich_lead(lead_id: str):
         "last_name": last_name,
         "reveal_personal_emails": True,
         "reveal_phone_number": True,
+        "run_waterfall_email": True,
+        "run_waterfall_phone": True,
     }
     if company:
         payload["organization_name"] = company
