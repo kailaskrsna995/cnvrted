@@ -872,35 +872,20 @@ export default function Dashboard() {
         </div>
 
         <div className="px-4 pt-3">
-          <div className="flex gap-2">
-            <button
-              onClick={triggerIngest}
-              disabled={loading || scanning || cooldownRemaining > 0}
-              className="font-mono-custom flex-1 border border-black text-black text-xs px-3 py-2 uppercase tracking-widest hover:bg-black hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {scanning ? (
-                <span className="flex items-center justify-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  <span>Scanning...</span>
-                </span>
-              ) : loading ? 'Starting...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : '⚡ Scan'}
-            </button>
-            {scanning && (
-              <button
-                onClick={() => {
-                  fetch(`${API}/ingest/stop/`, { method: 'POST' }).catch(() => {})
-                  setScanning(false)
-                  if (scanPollRef.current) { clearInterval(scanPollRef.current); scanPollRef.current = null }
-                }}
-                className="font-mono-custom border border-red-400 text-red-500 text-xs px-3 py-2 uppercase tracking-widest hover:bg-red-50 transition"
-                title="Stop scan"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          <button
+            onClick={triggerIngest}
+            disabled={loading || scanning || cooldownRemaining > 0}
+            className="font-mono-custom w-full border border-black text-black text-xs px-3 py-2 uppercase tracking-widest hover:bg-black hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {scanning ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span>Scanning...</span>
+              </span>
+            ) : loading ? 'Starting...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : '⚡ Scan'}
+          </button>
           {cooldownRemaining > 0 && (
             <p className="font-mono-custom text-xs text-gray-300 text-center mt-1.5">next scan in {formatCountdown(cooldownRemaining)}</p>
           )}
