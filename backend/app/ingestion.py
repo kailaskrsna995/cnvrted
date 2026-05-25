@@ -22,7 +22,8 @@ KEYWORDS = {
 }
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
-REDDIT_HEADERS = {"User-Agent": "cnvrted/1.0"}
+REDDIT_ACTOR = "automation-lab~reddit-scraper"
+TWITTER_ACTOR = "apidojo~tweet-scraper"
 
 def generate_lead_id(url: str, text: str, author: str) -> str:
     raw = f"{url}{text[:100]}{author}"
@@ -211,41 +212,103 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
     return results, total_scanned
 
 
-async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
-    from urllib.parse import quote
-    url = f"https://www.reddit.com/search.json?q={quote(keyword)}&sort=new&limit=25&t=week"
-    try:
-        resp = await client.get(url, headers=REDDIT_HEADERS)
-        if resp.status_code != 200:
-            print(f"[Reddit] '{keyword}' HTTP {resp.status_code}")
-            return []
-        posts = resp.json().get("data", {}).get("children", [])
-        print(f"[Reddit] '{keyword}' returned {len(posts)} posts")
-        normalised = []
-        for post in posts:
-            p = post.get("data", {})
-            title = p.get("title", "")
-            body = p.get("selftext", "")
-            text = f"{title}\n{body}".strip()
-            permalink = p.get("permalink", "")
-            if permalink:
-                permalink = f"https://reddit.com{permalink}"
-            normalised.append({
-                "text": text,
-                "author": {
-                    "firstName": p.get("author", "Reddit User"),
-                    "lastName": "",
-                    "occupation": f"r/{p.get('subreddit', '')}",
-                    "publicId": "",
-                },
-                "url": permalink,
-                "postedAt": p.get("created_utc"),
-                "_platform": "reddit",
-            })
-        return normalised
-    except Exception as e:
-        print(f"[Reddit] Error for '{keyword}': {e}")
+async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict, platform: str) -> list:
+    """Generic Apify actor runner — starts run, polls, fetches dataset."""
+    run_resp = await client.post(
+        f"https://api.apify.com/v2/acts/{actor}/runs",
+        params={"token": APIFY_API_TOKEN},
+        json=payload
+    )
+    if run_resp.status_code not in (200, 201):
+        print(f"[{platform}] Failed to start run: {run_resp.text[:200]}")
         return []
+    run_id = run_resp.json()["data"]["id"]
+    status = ""
+    for _ in range(24):
+        await asyncio.sleep(5)
+        status_resp = await client.get(
+            f"https://api.apify.com/v2/actor-runs/{run_id}",
+            params={"token": APIFY_API_TOKEN}
+        )
+        status = status_resp.json()["data"]["status"]
+        if status in ("SUCCEEDED", "FAILED", "ABORTED"):
+            break
+    if status != "SUCCEEDED":
+        print(f"[{platform}] Run did not succeed: {status}")
+        return []
+    run_data = await client.get(
+        f"https://api.apify.com/v2/actor-runs/{run_id}",
+        params={"token": APIFY_API_TOKEN}
+    )
+    dataset_id = run_data.json()["data"]["defaultDatasetId"]
+    items_resp = await client.get(
+        f"https://api.apify.com/v2/datasets/{dataset_id}/items",
+        params={"token": APIFY_API_TOKEN}
+    )
+    return items_resp.json() if items_resp.status_code == 200 else []
+
+
+async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
+    raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
+        "searchQuery": keyword,
+        "sort": "new",
+        "timeFilter": "week",
+        "maxPostsPerSource": 25,
+        "includeComments": False,
+        "maxCommentsPerPost": 0,
+    }, "Reddit")
+    print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
+    normalised = []
+    for item in raw_items:
+        title = item.get("title", "")
+        body = item.get("body", item.get("selftext", ""))
+        text = f"{title}\n{body}".strip()
+        permalink = item.get("permalink", item.get("url", ""))
+        if permalink and not permalink.startswith("http"):
+            permalink = f"https://reddit.com{permalink}"
+        normalised.append({
+            "text": text,
+            "author": {
+                "firstName": item.get("username", item.get("author", "Reddit User")),
+                "lastName": "",
+                "occupation": f"r/{item.get('subreddit', item.get('community', ''))}",
+                "publicId": "",
+            },
+            "url": permalink,
+            "postedAt": item.get("createdAt") or item.get("created_utc"),
+            "_platform": "reddit",
+        })
+    return normalised
+
+
+async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
+    raw_items = await _run_apify_actor(client, TWITTER_ACTOR, {
+        "searchTerms": [keyword],
+        "sort": "Latest",
+        "tweetLanguage": "en",
+        "maxItems": 20,
+    }, "Twitter")
+    print(f"[Twitter] '{keyword}' returned {len(raw_items)} posts")
+    normalised = []
+    for item in raw_items:
+        text = item.get("text", item.get("fullText", ""))
+        author_data = item.get("author", item.get("user", {}))
+        username = author_data.get("name", author_data.get("userName", "Twitter User"))
+        occupation = author_data.get("description", "")
+        url = item.get("url", item.get("twitterUrl", ""))
+        normalised.append({
+            "text": text,
+            "author": {
+                "firstName": username,
+                "lastName": "",
+                "occupation": occupation,
+                "publicId": author_data.get("userName", ""),
+            },
+            "url": url,
+            "postedAt": item.get("createdAt"),
+            "_platform": "twitter",
+        })
+    return normalised
 
 
 async def run_ingestion(
@@ -265,31 +328,22 @@ async def run_ingestion(
         # LinkedIn + Reddit fire in parallel
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
         reddit_tasks = [fetch_reddit_results(client, kw) for _, kw in keyword_map]
-        all_results = await asyncio.gather(*linkedin_tasks, *reddit_tasks, return_exceptions=True)
+        twitter_tasks = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
+        all_results = await asyncio.gather(*linkedin_tasks, *reddit_tasks, *twitter_tasks, return_exceptions=True)
 
-        linkedin_results = all_results[:len(keyword_map)]
-        reddit_results = all_results[len(keyword_map):]
+        n = len(keyword_map)
+        linkedin_results = all_results[:n]
+        reddit_results = all_results[n:n*2]
+        twitter_results = all_results[n*2:]
 
-        for (category, keyword), posts in zip(keyword_map, linkedin_results):
-            if isinstance(posts, Exception):
-                print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
-                continue
-            print(f"[LinkedIn] '{keyword}' returned {len(posts)} posts")
-            saved, scanned = _process_posts(posts, category, user_id)
-            results.extend(saved)
-            total_scanned += scanned
-
-        for (category, keyword), posts in zip(keyword_map, reddit_results):
-            if isinstance(posts, Exception):
-                print(f"[Error] Reddit keyword='{keyword}': {posts}")
-                continue
-            print(f"[Reddit] '{keyword}' returned {len(posts)} posts")
-            # Mark platform for Reddit posts
-            for p in posts:
-                p["_platform"] = "reddit"
-            saved, scanned = _process_posts(posts, category, user_id)
-            results.extend(saved)
-            total_scanned += scanned
+        for platform_label, platform_results in [("LinkedIn", linkedin_results), ("Reddit", reddit_results), ("Twitter", twitter_results)]:
+            for (category, keyword), posts in zip(keyword_map, platform_results):
+                if isinstance(posts, Exception):
+                    print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
+                    continue
+                saved, scanned = _process_posts(posts, category, user_id)
+                results.extend(saved)
+                total_scanned += scanned
 
     total_saved = len(results)
     print(f"[Ingestion] Done — scanned={total_scanned} saved={total_saved} rejected={total_scanned - total_saved}")
