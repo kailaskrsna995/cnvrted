@@ -160,7 +160,30 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
       await fetch(`${API}/users/${userId}/preferences/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service_offering: a.companyDo.trim(), target_industries: [a.icp.trim()], company_size: a.companySize })
+        body: JSON.stringify({
+          service_offering: a.companyDo.trim(),
+          target_industries: [a.icp.trim()],
+          company_size: a.companySize,
+          company_name: a.companyName.trim(),
+          contact_email: a.email.trim(),
+          contact_phone: a.phone.trim(),
+          icp: a.icp.trim(),
+          icp_changed: a.icpChanged,
+          icp_changed_how: a.icpChangedHow.trim(),
+          gtm_motions: a.gtmMotions,
+          gtm_other: a.gtmOtherText.trim(),
+          acquisition_channels: a.acquisition,
+          acquisition_other: a.acquisitionOtherText.trim(),
+          sales_cycle: a.salesCycle,
+          competitors: a.competitors.trim(),
+          same_contact: a.sameContact,
+          contact_name: a.contactName.trim(),
+          contact_role: a.contactRole.trim(),
+          leads_contact_email: a.contactEmail.trim(),
+          deal_size: a.dealSize,
+          best_customers: a.bestCustomers.trim(),
+          include_news: a.includeNews,
+        })
       })
     } catch {}
     onComplete(a.companyDo.trim(), [a.icp.trim()])

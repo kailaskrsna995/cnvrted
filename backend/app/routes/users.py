@@ -20,6 +20,26 @@ class PreferencesRequest(BaseModel):
     service_offering: str = ""
     target_industries: List[str] = []
     company_size: str = ""
+    # Full onboarding data
+    company_name: str = ""
+    contact_email: str = ""
+    contact_phone: str = ""
+    icp: str = ""
+    icp_changed: bool | None = None
+    icp_changed_how: str = ""
+    gtm_motions: List[str] = []
+    gtm_other: str = ""
+    acquisition_channels: List[str] = []
+    acquisition_other: str = ""
+    sales_cycle: str = ""
+    competitors: str = ""
+    same_contact: bool = True
+    contact_name: str = ""
+    contact_role: str = ""
+    leads_contact_email: str = ""
+    deal_size: str = ""
+    best_customers: str = ""
+    include_news: bool = True
 
 
 class SearchRequest(BaseModel):
@@ -85,10 +105,32 @@ def get_saved_lead_ids(user_id: str):
 
 @users_router.patch("/{user_id}/preferences/")
 def update_preferences(user_id: str, req: PreferencesRequest):
+    onboarding_data = {
+        "company_name": req.company_name,
+        "contact_email": req.contact_email,
+        "contact_phone": req.contact_phone,
+        "icp": req.icp,
+        "icp_changed": req.icp_changed,
+        "icp_changed_how": req.icp_changed_how,
+        "gtm_motions": req.gtm_motions,
+        "gtm_other": req.gtm_other,
+        "acquisition_channels": req.acquisition_channels,
+        "acquisition_other": req.acquisition_other,
+        "sales_cycle": req.sales_cycle,
+        "competitors": req.competitors,
+        "same_contact": req.same_contact,
+        "contact_name": req.contact_name,
+        "contact_role": req.contact_role,
+        "leads_contact_email": req.leads_contact_email,
+        "deal_size": req.deal_size,
+        "best_customers": req.best_customers,
+        "include_news": req.include_news,
+    }
     supabase.table("users").update({
         "service_offering": req.service_offering,
         "target_industries": req.target_industries,
         "company_size": req.company_size,
+        "onboarding_data": onboarding_data,
     }).eq("id", user_id).execute()
     return {"updated": True}
 
