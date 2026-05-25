@@ -25,6 +25,7 @@ type Lead = {
   posted_at: string | null
   platform?: string
   tokens_used?: number
+  location?: string
 }
 
 type ActiveSearch = { domain: string; keywords: string[] }
@@ -530,6 +531,7 @@ export default function Dashboard() {
   const [scanning, setScanning] = useState(false)
   const [scanStats, setScanStats] = useState<ScanStats>({ total_scanned: 0, total_rejected: 0, total_saved: 0 })
   const [searchQuery, setSearchQuery] = useState('')
+  const [locationQuery, setLocationQuery] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [activeSearch, setActiveSearch] = useState<ActiveSearch | null>(null)
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
@@ -732,6 +734,7 @@ export default function Dashboard() {
         body.keywords = search.keywords
         body.domain = search.domain
       }
+      if (locationQuery.trim()) body.location = locationQuery.trim()
       const res = await fetch(`${API}/ingest/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -858,6 +861,13 @@ export default function Dashboard() {
             onChange={e => { setSearchQuery(e.target.value); setActiveSearch(null) }}
             placeholder="e.g. filmmaker"
             className="font-mono-custom w-full border border-black/20 px-2 py-1.5 text-xs outline-none focus:border-black transition placeholder:text-gray-300"
+          />
+          <input
+            type="text"
+            value={locationQuery}
+            onChange={e => setLocationQuery(e.target.value)}
+            placeholder="Location (e.g. India)"
+            className="font-mono-custom w-full border border-black/20 px-2 py-1.5 text-xs outline-none focus:border-black transition placeholder:text-gray-300 mt-2"
           />
           {activeSearch && (
             <div className="mt-2.5 px-0.5">
@@ -1009,6 +1019,9 @@ export default function Dashboard() {
                         </div>
                         {lead.profession && <p className="font-mono-custom text-xs text-gray-500 mt-0.5">{lead.profession}</p>}
                         {lead.domain && <p className="font-mono-custom text-xs text-gray-400">{lead.domain}</p>}
+                        {lead.location && (
+                          <p className="font-mono-custom text-xs text-gray-400 mt-0.5">📍 {lead.location}</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

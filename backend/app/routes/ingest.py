@@ -19,6 +19,7 @@ class IngestRequest(BaseModel):
     user_id: Optional[str] = None
     keywords: Optional[List[str]] = None
     domain: Optional[str] = None
+    location: Optional[str] = None
 
 MOCK_POSTS = [
     {"author": "Sarah Chen", "company": "TechFlow Inc", "text": "Our support team is drowning in repetitive tickets. We desperately need AI automation to handle FAQs. Any recommendations for tools or agencies that specialize in this?", "category": "AI Automation"},
@@ -65,10 +66,10 @@ async def seed_mock_leads():
         inserted.append(lead)
     return {"seeded": len(inserted)}
 
-async def _run_and_unlock(keywords, domain, user_id):
+async def _run_and_unlock(keywords, domain, user_id, location=None):
     global _scan_in_progress, _last_scan_stats
     try:
-        stats = await run_ingestion(keywords, domain, user_id)
+        stats = await run_ingestion(keywords, domain, user_id, location)
         _last_scan_stats = stats
     finally:
         _scan_in_progress = False
@@ -90,5 +91,5 @@ async def trigger_ingestion(
             "last_scanned_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", req.user_id).execute()
 
-    background_tasks.add_task(_run_and_unlock, req.keywords, req.domain, req.user_id)
+    background_tasks.add_task(_run_and_unlock, req.keywords, req.domain, req.user_id, req.location)
     return {"status": "Scan started in background"}

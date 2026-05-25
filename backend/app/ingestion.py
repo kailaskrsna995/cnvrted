@@ -25,21 +25,55 @@ APIFY_ACTOR = "supreme_coder~linkedin-post"
 REDDIT_ACTOR = "automation-lab~reddit-scraper"
 TWITTER_ACTOR = "apidojo~tweet-scraper"
 
+# LinkedIn geo URN lookup — covers countries + major cities
+GEO_URNS: dict[str, str] = {
+    # Countries
+    "india": "102713980",
+    "usa": "103644278", "united states": "103644278",
+    "uk": "101165590", "united kingdom": "101165590",
+    "uae": "104305776", "dubai": "104305776",
+    "singapore": "102454443",
+    "australia": "101452733",
+    "canada": "101174742",
+    "germany": "101282230",
+    "france": "105015875",
+    "netherlands": "102890719",
+    # Indian cities
+    "bangalore": "105214831", "bengaluru": "105214831",
+    "mumbai": "102717679", "bombay": "102717679",
+    "delhi": "102713336", "new delhi": "102713336",
+    "hyderabad": "105556714",
+    "chennai": "105044164",
+    "pune": "106164952",
+    "kolkata": "105634330",
+    # Global cities
+    "london": "102257491",
+    "new york": "105080838",
+    "san francisco": "102277331",
+    "toronto": "101282703",
+    "sydney": "105790874",
+}
+
 def generate_lead_id(url: str, text: str, author: str) -> str:
     raw = f"{url}{text[:100]}{author}"
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
-def build_search_url(keyword: str) -> str:
+def build_search_url(keyword: str, location: Optional[str] = None) -> str:
     from urllib.parse import quote
+    geo_param = ""
+    if location:
+        urn = GEO_URNS.get(location.lower().strip())
+        if urn:
+            geo_param = f"&geoUrn=%5B%22{urn}%22%5D"
     # TODO: change past-week back to past-24h for production
-    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords={quote(keyword)}&origin=FACETED_SEARCH"
+    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords={quote(keyword)}&origin=FACETED_SEARCH{geo_param}"
 
-async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
+async def fetch_apify_results(client: httpx.AsyncClient, keyword: str, location: Optional[str] = None) -> list:
     # Step 1: start run
     run_resp = await client.post(
         f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
-        json={"urls": [build_search_url(keyword)], "limitPerSource": 15, "deepScrape": True, "rawData": False}
+        json={"urls": [build_search_url(keyword, location)], "limitPerSource": 15, "deepScrape": True, "rawData": False}
     )
     if run_resp.status_code not in (200, 201):
         print(f"[Apify] Failed to start run for '{keyword}': {run_resp.text[:200]}")
@@ -130,7 +164,7 @@ def _has_buying_signal(text: str) -> bool:
     return any(sig in lower for sig in BUYING_SIGNALS)
 
 
-def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
+def _process_posts(posts: list, category: str, user_id: Optional[str], location: Optional[str] = None) -> tuple:
     results = []
     total_scanned = 0
     for post in posts:
@@ -207,6 +241,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
                 "posted_at": posted_at,
                 "user_id": user_id,
                 "tokens_used": scored.get("tokens_used", 0),
+                "location": location or "",
             }
             supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()
             results.append(lead)
@@ -252,9 +287,10 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
     return items_resp.json() if items_resp.status_code == 200 else []
 
 
-async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
+async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str, location: Optional[str] = None) -> list:
+    search_kw = f"{keyword} {location}" if location else keyword
     raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
-        "searchQuery": keyword,
+        "searchQuery": search_kw,
         "sort": "new",
         "timeFilter": "week",
         "maxPostsPerSource": 25,
@@ -285,9 +321,10 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     return normalised
 
 
-async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
+async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str, location: Optional[str] = None) -> list:
+    search_kw = f"{keyword} {location}" if location else keyword
     raw_items = await _run_apify_actor(client, TWITTER_ACTOR, {
-        "searchTerms": [keyword],
+        "searchTerms": [search_kw],
         "sort": "Latest",
         "tweetLanguage": "en",
         "maxItems": 20,
@@ -318,7 +355,8 @@ async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list
 async def run_ingestion(
     custom_keywords: Optional[List[str]] = None,
     domain: Optional[str] = None,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
+    location: Optional[str] = None,
 ):
     if custom_keywords:
         keyword_map = [(domain or "Custom", kw) for kw in custom_keywords]
@@ -330,9 +368,9 @@ async def run_ingestion(
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         # LinkedIn + Reddit fire in parallel
-        linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        reddit_tasks = [fetch_reddit_results(client, kw) for _, kw in keyword_map]
-        twitter_tasks = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
+        linkedin_tasks = [fetch_apify_results(client, kw, location) for _, kw in keyword_map]
+        reddit_tasks = [fetch_reddit_results(client, kw, location) for _, kw in keyword_map]
+        twitter_tasks = [fetch_twitter_results(client, kw, location) for _, kw in keyword_map]
         all_results = await asyncio.gather(*linkedin_tasks, *reddit_tasks, *twitter_tasks, return_exceptions=True)
 
         n = len(keyword_map)
@@ -345,7 +383,7 @@ async def run_ingestion(
                 if isinstance(posts, Exception):
                     print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
                     continue
-                saved, scanned = _process_posts(posts, category, user_id)
+                saved, scanned = _process_posts(posts, category, user_id, location)
                 results.extend(saved)
                 total_scanned += scanned
 
