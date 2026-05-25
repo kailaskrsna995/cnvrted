@@ -1058,12 +1058,17 @@ export default function Dashboard() {
                     {lead.source_url && (
                       <a href={lead.source_url} target="_blank" rel="noopener noreferrer" title={`View on ${lead.platform === 'reddit' ? 'Reddit' : 'LinkedIn'}`} className="flex items-center gap-1 hover:opacity-70 transition">
                         {lead.platform === 'reddit' ? (
-                          <svg width="16" height="16" viewBox="0 0 20 20" fill="#FF4500" xmlns="http://www.w3.org/2000/svg">
+                          <svg width="16" height="16" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="10" cy="10" r="10" fill="#FF4500"/>
                             <path d="M16.67 10a1.46 1.46 0 0 0-2.47-1 7.12 7.12 0 0 0-3.85-1.23l.65-3.08 2.13.45a1 1 0 1 0 .14-.55l-2.38-.5a.27.27 0 0 0-.32.2l-.73 3.44a7.14 7.14 0 0 0-3.89 1.23 1.46 1.46 0 1 0-1.61 2.39 2.9 2.9 0 0 0 0 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.9 2.9 0 0 0 0-.44 1.46 1.46 0 0 0 .67-1.35zM7.27 11a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm5.59 2.71a3.58 3.58 0 0 1-2.86.86 3.58 3.58 0 0 1-2.86-.86.27.27 0 0 1 .38-.38 3.06 3.06 0 0 0 2.48.68 3.06 3.06 0 0 0 2.48-.68.27.27 0 0 1 .38.38zm-.13-1.71a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" fill="white"/>
                           </svg>
+                        ) : lead.platform === 'twitter' ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="24" height="24" rx="4" fill="#000"/>
+                            <path d="M17.5 4h2.5l-5.5 6.3L21 20h-5l-3.6-4.7L8 20H5.5l5.8-6.7L4 4h5.1l3.3 4.3L17.5 4zm-.9 14.4h1.4L7.4 5.4H5.9l10.7 13z" fill="white"/>
+                          </svg>
                         ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2" xmlns="http://www.w3.org/2000/svg">
+                          <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <rect width="24" height="24" rx="4" fill="#0A66C2"/>
                             <path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/>
                           </svg>
