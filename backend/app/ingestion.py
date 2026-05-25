@@ -197,40 +197,42 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
                     from datetime import datetime as _dt, timedelta as _td
                     import re as _re
                     if isinstance(raw_date, (int, float)):
-                        # Unix timestamp (ms if > 1e10, else seconds)
                         ts = raw_date / 1000 if raw_date > 1e10 else raw_date
                         posted_at = _dt.utcfromtimestamp(ts).isoformat()
                     elif isinstance(raw_date, str):
-                        # Relative time strings: "2h", "3d", "1w", "2 hours ago", "3 days ago"
-                        s = raw_date.strip().lower()
-                        m = _re.match(r'^(\d+)\s*(s|sec|m|min|h|hr|hour|d|day|w|week)', s)
-                        if m:
-                            n, unit = int(m.group(1)), m.group(2)
-                            delta = {
-                                's': _td(seconds=n), 'sec': _td(seconds=n),
-                                'm': _td(minutes=n), 'min': _td(minutes=n),
-                                'h': _td(hours=n), 'hr': _td(hours=n), 'hour': _td(hours=n),
-                                'd': _td(days=n), 'day': _td(days=n),
-                                'w': _td(weeks=n), 'week': _td(weeks=n),
-                            }.get(unit)
-                            if delta:
-                                posted_at = (_dt.utcnow() - delta).isoformat()
-                        else:
-                            posted_at = str(raw_date)
+                        s = raw_date.strip()
+                        # Twitter format: "Fri Mar 13 07:07:41 +0000 2026"
+                        try:
+                            dt = _dt.strptime(s, "%a %b %d %H:%M:%S %z %Y")
+                            posted_at = dt.replace(tzinfo=None).isoformat()
+                        except ValueError:
+                            # Relative time: "2h", "3d", "1w"
+                            m = _re.match(r'^(\d+)\s*(s|sec|m|min|h|hr|hour|d|day|w|week)', s.lower())
+                            if m:
+                                n, unit = int(m.group(1)), m.group(2)
+                                delta = {
+                                    's': _td(seconds=n), 'sec': _td(seconds=n),
+                                    'm': _td(minutes=n), 'min': _td(minutes=n),
+                                    'h': _td(hours=n), 'hr': _td(hours=n), 'hour': _td(hours=n),
+                                    'd': _td(days=n), 'day': _td(days=n),
+                                    'w': _td(weeks=n), 'week': _td(weeks=n),
+                                }.get(unit)
+                                if delta:
+                                    posted_at = (_dt.utcnow() - delta).isoformat()
+                            else:
+                                # ISO / fallback — strip tz offset
+                                clean = _re.sub(r'[+-]\d{2}:?\d{2}$', '', s.replace("Z", "")).strip()
+                                posted_at = _dt.fromisoformat(clean).isoformat()
                 except Exception:
                     posted_at = None
 
             # Drop Twitter posts older than 4 days
             if post.get("_platform") == "twitter":
-                drop = True  # default drop if we can't parse
+                drop = True
                 if posted_at:
                     try:
-                        from datetime import datetime as _dt2, timezone as _tz
-                        import re as _re2
-                        # Strip timezone offset so fromisoformat works on all Python versions
-                        clean = _re2.sub(r'[+-]\d{2}:?\d{2}$', '', posted_at.replace("Z", "")).strip()
-                        post_time = _dt2.fromisoformat(clean)
-                        age_days = (_dt2.utcnow() - post_time).days
+                        from datetime import datetime as _dt2
+                        age_days = (_dt2.utcnow() - _dt2.fromisoformat(posted_at)).days
                         if age_days <= 4:
                             drop = False
                         else:
