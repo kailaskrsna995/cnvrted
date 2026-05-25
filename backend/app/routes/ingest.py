@@ -35,6 +35,12 @@ MOCK_POSTS = [
 def scan_status():
     return {"scanning": _scan_in_progress, **_last_scan_stats}
 
+@router.post("/stop/")
+def stop_scan():
+    global _scan_in_progress
+    _scan_in_progress = False
+    return {"status": "stopped"}
+
 @router.post("/seed")
 async def seed_mock_leads():
     inserted = []
