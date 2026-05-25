@@ -11,14 +11,23 @@ def _get_client():
 # ── Token usage tracking ──────────────────────────────────────────────────────
 _session_input_tokens = 0
 _session_output_tokens = 0
+_session_cache_write_tokens = 0
+_session_cache_read_tokens = 0
 
 def get_token_usage() -> dict:
-    cost_input  = (_session_input_tokens  / 1_000_000) * 3.00   # $3/1M input (Sonnet)
-    cost_output = (_session_output_tokens / 1_000_000) * 15.00  # $15/1M output (Sonnet)
+    # Haiku pricing: $0.25/1M input, $1.25/1M output, $0.30/1M cache write, $0.025/1M cache read
+    cost = (
+        (_session_input_tokens       / 1_000_000) * 0.25 +
+        (_session_output_tokens      / 1_000_000) * 1.25 +
+        (_session_cache_write_tokens / 1_000_000) * 0.30 +
+        (_session_cache_read_tokens  / 1_000_000) * 0.025
+    )
     return {
-        "input_tokens":  _session_input_tokens,
-        "output_tokens": _session_output_tokens,
-        "estimated_cost_usd": round(cost_input + cost_output, 6),
+        "input_tokens":       _session_input_tokens,
+        "output_tokens":      _session_output_tokens,
+        "cache_write_tokens": _session_cache_write_tokens,
+        "cache_read_tokens":  _session_cache_read_tokens,
+        "estimated_cost_usd": round(cost, 6),
     }
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
@@ -110,8 +119,9 @@ Return JSON only. No explanation.
 {"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
 
 # ── LLM caller ────────────────────────────────────────────────────────────────
-def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_tokens: int = 256, model: str = "claude-haiku-4-5-20251001") -> str:
-    global _session_input_tokens, _session_output_tokens
+def _call_llm(system, user_content: str, temperature: float = 0.1, max_tokens: int = 256, model: str = "claude-haiku-4-5-20251001") -> str:
+    """system can be a plain string or a list of content blocks (for prompt caching)."""
+    global _session_input_tokens, _session_output_tokens, _session_cache_write_tokens, _session_cache_read_tokens
     client = _get_client()
     # TODO: re-enable rate limiting before production deploy
     # delays = [2, 4, 8]
@@ -125,11 +135,13 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
                 messages=[{"role": "user", "content": user_content}],
             )
             raw = response.content[0].text.strip()
-            # Track token usage
+            # Track token usage (including cache hits/writes)
             _session_input_tokens  += response.usage.input_tokens
             _session_output_tokens += response.usage.output_tokens
+            _session_cache_write_tokens += getattr(response.usage, "cache_creation_input_tokens", 0)
+            _session_cache_read_tokens  += getattr(response.usage, "cache_read_input_tokens", 0)
             usage = get_token_usage()
-            print(f"[Tokens] in={response.usage.input_tokens} out={response.usage.output_tokens} | session: in={usage['input_tokens']} out={usage['output_tokens']} cost≈${usage['estimated_cost_usd']}")
+            print(f"[Tokens] in={response.usage.input_tokens} out={response.usage.output_tokens} cache_write={getattr(response.usage,'cache_creation_input_tokens',0)} cache_read={getattr(response.usage,'cache_read_input_tokens',0)} cost≈${usage['estimated_cost_usd']}")
             # Extract JSON even if model wraps it in extra text
             start = raw.find('{')
             end = raw.rfind('}')
@@ -148,11 +160,18 @@ def _call_llm(system: str, user_content: str, temperature: float = 0.1, max_toke
 
 # ── Public functions ──────────────────────────────────────────────────────────
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
-    hint = f"\nFor this post, prefer category: \"{category_hint}\" if it fits." if category_hint else ""
-    tokens_in_before = _session_input_tokens
+    # Build system as content blocks — SYSTEM_PROMPT is cached, hint appended uncached
+    system_blocks = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
+    if category_hint:
+        system_blocks.append({"type": "text", "text": f"\nFor this post, prefer category: \"{category_hint}\" if it fits."})
+
+    tokens_in_before  = _session_input_tokens
     tokens_out_before = _session_output_tokens
-    raw = _call_llm(SYSTEM_PROMPT + hint, post_text, model="claude-sonnet-4-6")
-    tokens_used = (_session_input_tokens - tokens_in_before) + (_session_output_tokens - tokens_out_before)
+    raw = _call_llm(system_blocks, post_text)   # Haiku by default
+    tokens_used = (
+        (_session_input_tokens  - tokens_in_before) +
+        (_session_output_tokens - tokens_out_before)
+    )
     if not raw:
         print(f"[Scorer] All retries failed for: {post_text[:60]}")
         return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False, "tokens_used": 0}
@@ -163,7 +182,8 @@ def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
 
 
 def map_query_to_search(raw_query: str) -> dict:
-    raw = _call_llm(SEARCH_PROMPT, raw_query, temperature=0.0)
+    system_blocks = [{"type": "text", "text": SEARCH_PROMPT, "cache_control": {"type": "ephemeral"}}]
+    raw = _call_llm(system_blocks, raw_query, temperature=0.0)
     if not raw:
         return {"domain": raw_query.title(), "keywords": [raw_query]}
     print(f"[Search] raw={raw}")
