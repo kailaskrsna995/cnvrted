@@ -15,12 +15,12 @@ _session_cache_write_tokens = 0
 _session_cache_read_tokens = 0
 
 def get_token_usage() -> dict:
-    # Haiku pricing: $0.25/1M input, $1.25/1M output, $0.30/1M cache write, $0.025/1M cache read
+    # Sonnet pricing: $3/1M input, $15/1M output, $3.75/1M cache write, $0.30/1M cache read
     cost = (
-        (_session_input_tokens       / 1_000_000) * 0.25 +
-        (_session_output_tokens      / 1_000_000) * 1.25 +
-        (_session_cache_write_tokens / 1_000_000) * 0.30 +
-        (_session_cache_read_tokens  / 1_000_000) * 0.025
+        (_session_input_tokens       / 1_000_000) * 3.00 +
+        (_session_output_tokens      / 1_000_000) * 15.00 +
+        (_session_cache_write_tokens / 1_000_000) * 3.75 +
+        (_session_cache_read_tokens  / 1_000_000) * 0.30
     )
     return {
         "input_tokens":       _session_input_tokens,
@@ -167,7 +167,7 @@ def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
 
     tokens_in_before  = _session_input_tokens
     tokens_out_before = _session_output_tokens
-    raw = _call_llm(system_blocks, post_text)   # Haiku by default
+    raw = _call_llm(system_blocks, post_text, model="claude-sonnet-4-6")
     tokens_used = (
         (_session_input_tokens  - tokens_in_before) +
         (_session_output_tokens - tokens_out_before)
