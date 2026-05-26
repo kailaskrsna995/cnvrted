@@ -678,6 +678,18 @@ function ProfileModal({ userName, userPosition, savedLeadIds, onClose, onLogout 
   )
 }
 
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+function avatarBg(name: string) {
+  const palette = ['bg-blue-100 text-blue-700','bg-emerald-100 text-emerald-700','bg-violet-100 text-violet-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-cyan-100 text-cyan-700']
+  return palette[(name?.charCodeAt(0) || 0) % palette.length]
+}
+
 export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
@@ -966,10 +978,12 @@ export default function Dashboard() {
     )
   }
 
-  const uniqueCategories = ['All', ...Object.keys(stats).filter(k => k && k !== 'None'), 'Saved']
+  const urgentCount = leads.filter(l => l.timeline === 'Urgent').length
+  const totalLeadsCount = Object.values(stats).reduce((a, b) => a + b, 0)
+  const categoryKeys = Object.keys(stats).filter(k => k && k !== 'None')
 
   return (
-    <div className="h-screen flex overflow-hidden grid-bg">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {profileOpen && (
         <ProfileModal
           userName={userName}
@@ -990,304 +1004,296 @@ export default function Dashboard() {
         <PostPreviewModal lead={previewLead} onClose={() => setPreviewLead(null)} />
       )}
 
-      {/* Sidebar */}
-      <aside className="w-52 border-r border-black/10 bg-white/80 backdrop-blur flex flex-col h-screen shrink-0">
-        <div className="px-5 py-5 border-b border-black/10">
+      {/* ── LEFT SIDEBAR ── */}
+      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col h-screen shrink-0">
+        <div className="px-5 py-5 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black">cnvrted</span>
             <span className="font-mono-custom text-[9px] text-gray-300 border border-black/10 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
           </div>
         </div>
 
-        <div className="px-4 pt-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setActiveSearch(null) }}
-            placeholder="e.g. filmmaker"
-            className="font-mono-custom w-full border border-black/20 px-2 py-1.5 text-xs outline-none focus:border-black transition placeholder:text-gray-300"
-          />
-          {activeSearch && (
-            <div className="mt-2.5 px-0.5">
-              <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">Domain</p>
-              <p className="font-canela text-sm text-black mt-0.5">{activeSearch.domain}</p>
-            </div>
-          )}
-          {!activeSearch && suggestedDomains.length > 0 && (
-            <div className="mt-3 px-0.5">
-              <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest mb-2">Suggested</p>
-              <div className="flex flex-col gap-1">
-                {suggestedDomains.map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setSearchQuery(d)}
-                    className={`font-mono-custom text-xs text-left px-2 py-1.5 border transition truncate
-                      ${searchQuery === d ? 'border-black bg-black text-white' : 'border-black/15 text-gray-500 hover:border-black/40 hover:text-black'}`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="px-4 pt-3">
-          <button
-            onClick={triggerIngest}
-            disabled={loading || scanning || cooldownRemaining > 0}
-            className="font-mono-custom w-full border border-black text-black text-xs px-3 py-2 uppercase tracking-widest hover:bg-black hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {scanning ? (
-              <span className="flex items-center justify-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span>Scanning...</span>
-              </span>
-            ) : loading ? 'Starting...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : '⚡ Scan'}
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <button onClick={() => setCategory('All')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition mb-1 ${category === 'All' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span className="font-mono-custom text-xs uppercase tracking-wide">Overview</span>
           </button>
-          {cooldownRemaining > 0 && (
-            <p className="font-mono-custom text-xs text-gray-300 text-center mt-1.5">next scan in {formatCountdown(cooldownRemaining)}</p>
-          )}
-        </div>
 
-        <nav className="flex flex-col gap-0.5 px-3 pt-5 flex-1 overflow-y-auto">
-          <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest px-2 mb-2">Feeds</p>
-          {uniqueCategories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`font-mono-custom w-full text-left px-2 py-2 text-xs flex justify-between items-center transition uppercase tracking-wide
-                ${category === cat ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <span>{cat === 'Saved' ? '♡ Saved' : cat}</span>
-              {cat !== 'All' && cat !== 'Saved' && (
-                <span className={`text-xs px-1.5 py-0.5 ${category === cat ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  {stats[cat] || 0}
-                </span>
-              )}
-              {cat === 'Saved' && savedLeadIds.size > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 ${category === cat ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  {savedLeadIds.size}
-                </span>
-              )}
+          {categoryKeys.length > 0 && <p className="font-mono-custom text-[10px] text-gray-300 uppercase tracking-widest px-3 mb-1.5 mt-4">Categories</p>}
+          {categoryKeys.map(cat => (
+            <button key={cat} onClick={() => setCategory(cat)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition mb-0.5 ${category === cat ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <div className="flex items-center gap-3">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                <span className="font-mono-custom text-xs uppercase tracking-wide truncate">{cat}</span>
+              </div>
+              <span className={`font-mono-custom text-[10px] px-1.5 py-0.5 rounded shrink-0 ${category === cat ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>{stats[cat] || 0}</span>
             </button>
           ))}
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <button onClick={() => setCategory('Saved')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition ${category === 'Saved' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              <div className="flex items-center gap-3">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill={category === 'Saved' ? 'white' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <span className="font-mono-custom text-xs uppercase tracking-wide">Saved</span>
+              </div>
+              {savedLeadIds.size > 0 && <span className={`font-mono-custom text-[10px] px-1.5 py-0.5 rounded ${category === 'Saved' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>{savedLeadIds.size}</span>}
+            </button>
+          </div>
         </nav>
 
-        <div className="px-5 pb-5" />
+        <div className="px-4 py-4 border-t border-gray-100">
+          <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition">
+            <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center font-mono-custom text-[10px]">?</div>
+            <span className="font-mono-custom text-xs uppercase tracking-wide">Need help?</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Main */}
+      {/* ── CENTER ── */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <div className="flex items-center justify-between px-8 py-4 border-b border-black/10 bg-white/70 backdrop-blur shrink-0">
-          <h1 className="font-canela text-2xl font-light text-black tracking-tight">
-            {category === 'All' ? 'All Intent Signals' : category === 'Saved' ? 'Saved Leads' : category}
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-100 shrink-0">
+          <h1 className="font-canela text-xl font-medium text-black">
+            {category === 'All' ? 'Overview' : category === 'Saved' ? 'Saved Leads' : category}
           </h1>
           <div className="flex items-center gap-4">
-            <span className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">{leads.length} leads</span>
-            <button
-              onClick={() => setProfileOpen(true)}
-              className="flex items-center gap-2 hover:opacity-70 transition"
-            >
-              <div className="w-7 h-7 bg-black flex items-center justify-center font-canela text-white text-xs">
+            {scanning && (
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"/>
+                <span className="font-mono-custom text-xs text-amber-500 uppercase tracking-widest">Scanning</span>
+              </div>
+            )}
+            <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2.5 hover:opacity-80 transition">
+              <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center font-canela text-white text-xs shrink-0">
                 {userName[0]?.toUpperCase() || '?'}
               </div>
-              <span className="font-mono-custom text-xs text-gray-600 uppercase tracking-widest">{userName}</span>
+              <div className="text-left">
+                <p className="font-canela text-sm font-medium text-black leading-tight">{userName}</p>
+                <p className="font-mono-custom text-[10px] text-gray-400 leading-tight">Pro Plan</p>
+              </div>
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {leads.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-300">
-              <p className="font-canela text-5xl mb-3 font-light">{category === 'Saved' ? '♡' : '📡'}</p>
-              <p className="font-mono-custom text-xs uppercase tracking-widest">
-                {category === 'Saved' ? 'No saved leads yet' : 'Search for a domain, then hit scan'}
-              </p>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-8 py-8">
+
+          {/* Greeting + logo */}
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <svg viewBox="0 0 100 50" width="42" height="21" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round">
+                <path d="M50,25 C50,10 63,10 72,25 C81,40 81,40 72,25 C63,10 50,10 50,25 C50,40 37,40 28,25 C19,10 19,10 28,25 C37,40 50,40 50,25"/>
+                <line x1="44" y1="30" x2="56" y2="20"/>
+                <polyline points="53,19 56,20 55,23"/>
+                <polyline points="47,31 44,30 45,27"/>
+              </svg>
             </div>
-          )}
-
-          {leads.length > 0 && leads.every(l => isOlderThan24h(l.posted_at)) && (
-            <div className="max-w-4xl mb-4 px-4 py-2.5 border border-amber-200 bg-amber-50 font-mono-custom text-xs text-amber-600 uppercase tracking-widest">
-              No recent activity — showing older results
-            </div>
-          )}
-
-          <div className="flex flex-col gap-4 max-w-4xl">
-            {leads.map(lead => {
-              const hasEmail = !!lead.contact_email
-              const hasPhone = !!lead.contact_phone
-              const emailRevealed = revealedEmails.has(lead.lead_id)
-              const phoneRevealed = revealedPhones.has(lead.lead_id)
-              return (
-                <div key={lead.id} className="bg-white border border-black/10 p-6 hover:border-black/30 hover:shadow-md transition">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 border border-black/20 flex items-center justify-center font-canela text-sm font-medium shrink-0">
-                        {lead.author?.[0]?.toUpperCase() || '?'}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {/* Platform logo → links to author profile */}
-                          {lead.contact_linkedin && (
-                            <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer" className="shrink-0 hover:opacity-70 transition">
-                              {lead.platform === 'reddit' ? (
-                                <svg width="16" height="16" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                  <circle cx="10" cy="10" r="10" fill="#FF4500"/>
-                                  <path d="M16.67 10a1.46 1.46 0 0 0-2.47-1 7.12 7.12 0 0 0-3.85-1.23l.65-3.08 2.13.45a1 1 0 1 0 .14-.55l-2.38-.5a.27.27 0 0 0-.32.2l-.73 3.44a7.14 7.14 0 0 0-3.89 1.23 1.46 1.46 0 1 0-1.61 2.39 2.9 2.9 0 0 0 0 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.9 2.9 0 0 0 0-.44 1.46 1.46 0 0 0 .67-1.35zM7.27 11a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm5.59 2.71a3.58 3.58 0 0 1-2.86.86 3.58 3.58 0 0 1-2.86-.86.27.27 0 0 1 .38-.38 3.06 3.06 0 0 0 2.48.68 3.06 3.06 0 0 0 2.48-.68.27.27 0 0 1 .38.38zm-.13-1.71a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" fill="white"/>
-                                </svg>
-                              ) : lead.platform === 'twitter' ? (
-                                <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                  <rect width="24" height="24" rx="4" fill="#000"/>
-                                  <path d="M17.5 4h2.5l-5.5 6.3L21 20h-5l-3.6-4.7L8 20H5.5l5.8-6.7L4 4h5.1l3.3 4.3L17.5 4zm-.9 14.4h1.4L7.4 5.4H5.9l10.7 13z" fill="white"/>
-                                </svg>
-                              ) : (
-                                <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                  <rect width="24" height="24" rx="4" fill="#0A66C2"/>
-                                  <path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/>
-                                </svg>
-                              )}
-                            </a>
-                          )}
-                          <p className="font-canela text-lg font-medium text-black leading-tight">{lead.author}</p>
-                          {isOlderThan24h(lead.posted_at) && (
-                            <span className="font-mono-custom text-xs text-amber-500 border border-amber-200 px-1.5 py-0.5 leading-none">Older Post</span>
-                          )}
-                        </div>
-                        {lead.profession && <p className="font-mono-custom text-xs text-gray-500 mt-0.5">{lead.profession}</p>}
-                        {lead.domain && <p className="font-mono-custom text-xs text-gray-400">{lead.domain}</p>}
-                        {lead.location && (
-                          <p className="font-mono-custom text-xs text-gray-400 mt-0.5">📍 {lead.location}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`font-mono-custom text-xs font-bold ${timelineColor(lead.timeline)}`}>{lead.timeline}</span>
-                      <span className={`font-mono-custom text-xs px-2 py-1 font-bold ${scoreColor(lead.intent_score)}`}>
-                        {lead.intent_score}
-                      </span>
-                      <button
-                        onClick={() => toggleSave(lead)}
-                        className={`text-lg leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-300 hover:text-gray-500'}`}
-                        title={savedLeadIds.has(lead.lead_id) ? 'Unsave' : 'Save'}
-                      >
-                        {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {lead.exact_need && (
-                    <div className="border-l-2 border-black pl-3 mb-4">
-                      <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Looking for</p>
-                      <p className="font-canela text-base text-black">{lead.exact_need}</p>
-                    </div>
-                  )}
-
-                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">{lead.post_text}</p>
-
-                  <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-                    {/* Email */}
-                    {hasEmail ? (
-                      emailRevealed ? (
-                        <a href={`mailto:${lead.contact_email}`}
-                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
-                          ✉ {lead.contact_email}
-                        </a>
-                      ) : (
-                        <button onClick={() => toggleEmail(lead.lead_id)}
-                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
-                          ✉ Reveal Email
-                        </button>
-                      )
-                    ) : (
-                      <span className="font-mono-custom text-xs text-red-300 border border-red-100 px-2.5 py-1">✉ No email</span>
-                    )}
-
-                    {/* Phone */}
-                    {hasPhone ? (
-                      phoneRevealed ? (
-                        <a href={`tel:${lead.contact_phone}`}
-                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
-                          📞 {lead.contact_phone}
-                        </a>
-                      ) : (
-                        <button onClick={() => togglePhone(lead.lead_id)}
-                          className="font-mono-custom text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 hover:bg-green-100 transition">
-                          📞 Reveal Phone
-                        </button>
-                      )
-                    ) : (
-                      <span className="font-mono-custom text-xs text-red-300 border border-red-100 px-2.5 py-1">📞 No phone</span>
-                    )}
-
-                    {/* Token usage badge — internal only, remove before public launch */}
-                    {lead.tokens_used ? (
-                      <span className="font-mono-custom text-xs text-gray-300 border border-gray-100 px-1.5 py-0.5" title="Tokens used for scoring">
-                        {lead.tokens_used}t
-                      </span>
-                    ) : null}
-                    <span className="font-mono-custom text-xs text-gray-300 ml-auto" title={formatDate(lead.posted_at || lead.ingested_at)}>
-                      {lead.platform === 'linkedin' ? formatRelativeTime(lead.posted_at) : formatDate(lead.posted_at || lead.ingested_at)}
-                    </span>
-                    {lead.source_url && (
-                      <button onClick={() => setPreviewLead(lead)} className="font-mono-custom text-xs text-gray-400 hover:text-black transition">
-                        View post ↗
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+            <h2 className="font-canela text-3xl font-light text-black mb-2">
+              {getGreeting()}, {userName.split(' ')[0] || userName}
+            </h2>
+            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">
+              How can I help you grow your pipeline today?
+            </p>
           </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            {[
+              { label: 'Total Leads', value: totalLeadsCount, sub: `all time` },
+              { label: 'Qualified', value: leads.length, sub: 'score ≥ 60' },
+              { label: 'Urgent', value: urgentCount, sub: 'need reply now' },
+              { label: 'Posts Scanned', value: scanStats.total_scanned, sub: `${scanStats.total_rejected} rejected` },
+            ].map(card => (
+              <div key={card.label} className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <p className="font-mono-custom text-[10px] text-gray-400 uppercase tracking-widest mb-2">{card.label}</p>
+                <p className="font-canela text-3xl font-light text-black leading-none mb-1">{card.value}</p>
+                <div className="flex items-end justify-between mt-3">
+                  <p className="font-mono-custom text-[10px] text-gray-400">{card.sub}</p>
+                  <svg width="56" height="22" viewBox="0 0 56 22"><path d="M0 16 Q8 10 14 12 Q22 14 28 7 Q36 2 44 5 Q50 7 56 4" fill="none" stroke="#e5e7eb" strokeWidth="1.5"/></svg>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Search / Scan input */}
+          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-4 shadow-sm">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setActiveSearch(null) }}
+              onKeyDown={e => e.key === 'Enter' && triggerIngest()}
+              placeholder="Ask anything about your leads, prospects, or accounts..."
+              className="w-full font-canela text-base text-black placeholder:text-gray-300 outline-none mb-4 bg-transparent"
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <button className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-300 transition">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                </button>
+                <button className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-300 transition">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/></svg>
+                </button>
+                {activeSearch && (
+                  <span className="font-mono-custom text-xs text-gray-400 ml-2">Domain: <span className="text-black">{activeSearch.domain}</span></span>
+                )}
+              </div>
+              <button
+                onClick={triggerIngest}
+                disabled={loading || scanning || cooldownRemaining > 0}
+                className="w-9 h-9 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition disabled:opacity-30 shrink-0"
+              >
+                {scanning ? (
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse"/>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick chips */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { icon: '👤', label: 'Show me top leads', action: () => {} },
+              { icon: '📊', label: 'Leads by industry', action: () => setCategory('All') },
+              { icon: '⏱', label: 'Recent activity', action: () => {} },
+              { icon: '🔍', label: 'Help me analyze', action: () => {} },
+              ...suggestedDomains.slice(0, 2).map(d => ({ icon: '⚡', label: d, action: () => setSearchQuery(d) })),
+            ].map(chip => (
+              <button key={chip.label} onClick={chip.action}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition shadow-sm">
+                <span className="text-xs">{chip.icon}</span>
+                <span className="font-mono-custom text-xs text-gray-600">{chip.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {cooldownRemaining > 0 && (
+            <p className="font-mono-custom text-xs text-gray-300 text-center mt-6 uppercase tracking-widest">
+              Next scan in {formatCountdown(cooldownRemaining)}
+            </p>
+          )}
         </div>
       </main>
 
-      {/* Right panel — scan metrics */}
-      <aside className="w-56 border-l border-black/10 bg-white/80 backdrop-blur flex flex-col h-screen shrink-0">
-        <div className="px-5 py-5 border-b border-black/10">
-          <p className="font-mono-custom text-xs font-bold tracking-widest uppercase text-black">Scan Metrics</p>
+      {/* ── RIGHT PANEL — LEADS ── */}
+      <aside className="w-80 bg-white border-l border-gray-100 flex flex-col h-screen shrink-0">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">🔥</span>
+            <span className="font-mono-custom text-xs font-bold uppercase tracking-widest text-black">
+              {category === 'Saved' ? 'Saved Leads' : 'Hot Leads'}
+            </span>
+          </div>
+          <span className="font-mono-custom text-xs text-gray-400">{leads.length}</span>
         </div>
 
-        <div className="px-5 py-6 flex flex-col gap-6">
-          {/* Scanning indicator */}
-          {scanning && (
-            <div className="flex items-center gap-2 py-2 px-3 border border-amber-200 bg-amber-50">
-              <span className="inline-block w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shrink-0" />
-              <p className="font-mono-custom text-xs text-amber-600 uppercase tracking-widest">Scanning...</p>
+        <div className="flex-1 overflow-y-auto">
+          {leads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-300 px-6">
+              <p className="font-canela text-4xl mb-3">{category === 'Saved' ? '♡' : '📡'}</p>
+              <p className="font-mono-custom text-xs uppercase tracking-widest text-center">
+                {category === 'Saved' ? 'No saved leads yet' : 'Hit scan to find leads'}
+              </p>
             </div>
+          ) : (
+            leads.map(lead => {
+              const hasEmail = !!lead.contact_email
+              const emailRevealed = revealedEmails.has(lead.lead_id)
+              const phoneRevealed = revealedPhones.has(lead.lead_id)
+              const initials = (lead.author || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+              const isHot = lead.timeline === 'Urgent'
+              const isWarm = lead.timeline === 'Active'
+              return (
+                <div key={lead.id} className="px-4 py-4 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer"
+                  onClick={() => setPreviewLead(lead)}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarBg(lead.author || '')}`}>
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <p className="font-canela text-sm font-medium text-black truncate">{lead.author}</p>
+                        <span className={`shrink-0 font-mono-custom text-[9px] px-1.5 py-0.5 uppercase tracking-wide ${isHot ? 'bg-black text-white' : isWarm ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                          {isHot ? 'Hot' : isWarm ? 'Warm' : 'Cool'}
+                        </span>
+                      </div>
+                      <p className="font-mono-custom text-[10px] text-gray-400 mb-1.5 truncate">
+                        {[lead.profession, lead.company].filter(Boolean).join(' at ')}
+                      </p>
+                      {lead.exact_need && (
+                        <p className="font-mono-custom text-[11px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{lead.exact_need}</p>
+                      )}
+                      <div className="flex items-center gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
+                        {/* Email icon */}
+                        {hasEmail ? (
+                          emailRevealed ? (
+                            <a href={`mailto:${lead.contact_email}`} title={lead.contact_email}
+                              className="w-6 h-6 rounded border border-green-200 bg-green-50 flex items-center justify-center hover:bg-green-100 transition">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            </a>
+                          ) : (
+                            <button onClick={() => toggleEmail(lead.lead_id)} title="Reveal email"
+                              className="w-6 h-6 rounded border border-green-200 bg-green-50 flex items-center justify-center hover:bg-green-100 transition">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            </button>
+                          )
+                        ) : (
+                          <div className="w-6 h-6 rounded border border-gray-100 flex items-center justify-center opacity-30">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                          </div>
+                        )}
+                        {/* LinkedIn icon */}
+                        {lead.contact_linkedin && (
+                          <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer"
+                            className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
+                            <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
+                          </a>
+                        )}
+                        {/* X icon */}
+                        {lead.platform === 'twitter' && lead.source_url && (
+                          <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
+                            className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition">
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.763l7.738-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                          </a>
+                        )}
+                        {/* Save */}
+                        <button onClick={() => toggleSave(lead)}
+                          className={`ml-auto text-base leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-200 hover:text-gray-400'}`}>
+                          {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
+                        </button>
+                        {/* Time */}
+                        <span className="font-mono-custom text-[9px] text-gray-300">
+                          {lead.platform === 'linkedin' ? formatRelativeTime(lead.posted_at) : formatRelativeTime(lead.posted_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
           )}
+        </div>
 
-          {/* Posts scanned */}
-          <div>
-            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Posts Scanned</p>
-            <p className="font-canela text-4xl font-light text-black leading-none">
-              {scanStats.total_scanned}
-            </p>
-          </div>
-
-          {/* Rejected */}
-          <div>
-            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Rejected</p>
-            <p className="font-canela text-4xl font-light text-red-400 leading-none">
-              {scanStats.total_rejected}
-            </p>
-          </div>
-
-          {/* Accepted */}
-          <div>
-            <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1">Accepted</p>
-            <p className="font-canela text-4xl font-light text-green-600 leading-none">
-              {scanStats.total_saved}
-            </p>
-          </div>
-
-          {scanStats.total_scanned === 0 && !scanning && (
-            <p className="font-mono-custom text-xs text-gray-300 uppercase tracking-widest leading-relaxed">
-              Hit scan to see metrics here
-            </p>
-          )}
+        <div className="px-4 py-4 border-t border-gray-100 shrink-0">
+          <button
+            onClick={triggerIngest}
+            disabled={loading || scanning || cooldownRemaining > 0}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-black text-white font-mono-custom text-xs uppercase tracking-widest rounded-lg hover:bg-gray-900 transition disabled:opacity-40"
+          >
+            {scanning ? (
+              <>
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
+                <span>Scanning...</span>
+              </>
+            ) : loading ? 'Starting...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : 'View all leads →'}
+          </button>
         </div>
       </aside>
     </div>
