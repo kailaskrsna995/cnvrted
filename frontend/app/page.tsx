@@ -1102,7 +1102,7 @@ export default function Dashboard() {
               </div>
               <div className="text-left">
                 <p className="font-canela text-sm font-medium text-black leading-tight">{firstName}</p>
-                <p className="font-mono-custom text-[10px] text-gray-400 leading-tight">Pro Plan</p>
+                <p className="font-mono-custom text-[10px] text-gray-400 leading-tight">Early Access</p>
               </div>
             </button>
           </div>
@@ -1311,45 +1311,58 @@ export default function Dashboard() {
                       {lead.exact_need && (
                         <p className="font-mono-custom text-[11px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{lead.exact_need}</p>
                       )}
-                      <div className="flex items-center gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
-                        {/* Email */}
-                        {hasEmail ? (
-                          emailRevealed ? (
-                            <a href={`mailto:${lead.contact_email}`} title={lead.contact_email}
-                              className="w-6 h-6 rounded border border-green-200 bg-green-50 flex items-center justify-center hover:bg-green-100 transition">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                      <div className="mt-1" onClick={e => e.stopPropagation()}>
+                        {/* Icons row */}
+                        <div className="flex items-center gap-1.5">
+                          {/* Email icon */}
+                          <button onClick={() => toggleEmail(lead.lead_id)}
+                            className={`w-6 h-6 rounded border flex items-center justify-center transition ${hasEmail ? 'border-green-200 bg-green-50 hover:bg-green-100' : 'border-gray-100 opacity-30 cursor-default'}`}
+                            disabled={!hasEmail}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={hasEmail ? '#16a34a' : '#9ca3af'} strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                          </button>
+                          {/* Phone icon */}
+                          <button onClick={() => togglePhone(lead.lead_id)}
+                            className={`w-6 h-6 rounded border flex items-center justify-center transition ${lead.contact_phone ? 'border-violet-200 bg-violet-50 hover:bg-violet-100' : 'border-gray-100 opacity-30 cursor-default'}`}
+                            disabled={!lead.contact_phone}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={lead.contact_phone ? '#7c3aed' : '#9ca3af'} strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                          </button>
+                          {/* LinkedIn */}
+                          {lead.platform === 'linkedin' && (
+                            <a href={lead.contact_linkedin || lead.source_url || '#'} target="_blank" rel="noopener noreferrer"
+                              className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
+                              <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
                             </a>
-                          ) : (
-                            <button onClick={() => toggleEmail(lead.lead_id)} title="Reveal email"
-                              className="w-6 h-6 rounded border border-green-200 bg-green-50 flex items-center justify-center hover:bg-green-100 transition">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                            </button>
-                          )
-                        ) : (
-                          <div className="w-6 h-6 rounded border border-gray-100 flex items-center justify-center opacity-30">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                          )}
+                          {/* X */}
+                          {lead.platform === 'twitter' && lead.source_url && (
+                            <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
+                              className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition">
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.763l7.738-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                          )}
+                          <button onClick={() => toggleSave(lead)}
+                            className={`ml-auto text-base leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-200 hover:text-gray-400'}`}>
+                            {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
+                          </button>
+                          <span className="font-mono-custom text-[9px] text-gray-300">{formatRelativeTime(lead.posted_at)}</span>
+                        </div>
+                        {/* Inline contact reveal */}
+                        {emailRevealed && lead.contact_email && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <a href={`mailto:${lead.contact_email}`}
+                              className="font-mono-custom text-[11px] text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded hover:bg-green-100 transition truncate">
+                              {lead.contact_email}
+                            </a>
                           </div>
                         )}
-                        {/* LinkedIn — only for linkedin posts */}
-                        {lead.platform === 'linkedin' && (
-                          <a href={lead.contact_linkedin || lead.source_url || '#'} target="_blank" rel="noopener noreferrer"
-                            className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
-                            <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
-                          </a>
+                        {revealedPhones.has(lead.lead_id) && lead.contact_phone && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <a href={`tel:${lead.contact_phone}`}
+                              className="font-mono-custom text-[11px] text-violet-700 bg-violet-50 border border-violet-200 px-2 py-1 rounded hover:bg-violet-100 transition">
+                              {lead.contact_phone}
+                            </a>
+                          </div>
                         )}
-                        {/* X — only for twitter posts, goes to post */}
-                        {lead.platform === 'twitter' && lead.source_url && (
-                          <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
-                            className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition">
-                            <svg width="9" height="9" viewBox="0 0 24 24" fill="black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.763l7.738-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                          </a>
-                        )}
-                        {/* Save */}
-                        <button onClick={() => toggleSave(lead)}
-                          className={`ml-auto text-base leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-200 hover:text-gray-400'}`}>
-                          {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
-                        </button>
-                        <span className="font-mono-custom text-[9px] text-gray-300">{formatRelativeTime(lead.posted_at)}</span>
                       </div>
                     </div>
                   </div>
