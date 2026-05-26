@@ -193,6 +193,31 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
   const iCls = 'font-mono-custom w-full border border-white/20 bg-white/[0.06] text-white placeholder:text-white/20 px-3 py-2.5 text-sm outline-none focus:border-white/50 transition'
   const lCls = 'font-mono-custom text-xs text-white/40 uppercase tracking-widest block mb-2'
 
+  const CustomSelect = ({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) => {
+    const [open, setOpen] = useState(false)
+    return (
+      <div className="relative">
+        <button type="button" onClick={() => setOpen(o => !o)}
+          className="font-mono-custom w-full border border-white/20 bg-white/[0.06] text-sm px-3 py-2.5 outline-none flex items-center justify-between transition hover:border-white/40"
+          style={{ color: value ? '#ffffff' : 'rgba(255,255,255,0.2)' }}>
+          <span>{value || placeholder}</span>
+          <span className="text-white/40 text-xs ml-2">▼</span>
+        </button>
+        {open && (
+          <div className="absolute z-50 w-full mt-1 border border-white/20 bg-[#0f0f0f] overflow-hidden">
+            {options.map(opt => (
+              <button key={opt} type="button"
+                onClick={() => { onChange(opt); setOpen(false) }}
+                className={`w-full text-left font-mono-custom text-sm px-3 py-2.5 transition hover:bg-white/10 ${value === opt ? 'bg-white text-black' : 'text-white'}`}>
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const Chips = ({ opts, sel, onToggle, other, setOther }: { opts: string[]; sel: string[]; onToggle: (v: string) => void; other?: string; setOther?: (v: string) => void }) => (
     <div>
       <div className="flex flex-wrap gap-2">
@@ -263,11 +288,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
             <div>
               <label className={lCls}>Q4 — Company Size <span className="text-red-400">*</span></label>
               <div className="relative">
-                <select value={a.companySize} onChange={e => set('companySize', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
-                  <option value="">Select size...</option>
-                  {COMPANY_SIZES.map(s => <option key={s}>{s}</option>)}
-                </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▼</span>
+                <CustomSelect value={a.companySize} onChange={v => set('companySize', v)} options={COMPANY_SIZES} placeholder="Select size..." />
               </div>
             </div>
           </>}
@@ -310,11 +331,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
             <div>
               <label className={lCls}>Q9 — Typical sales cycle <span className="text-red-400">*</span></label>
               <div className="relative">
-                <select value={a.salesCycle} onChange={e => set('salesCycle', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
-                  <option value="">Select sales cycle...</option>
-                  {SALES_CYCLES.map(s => <option key={s}>{s}</option>)}
-                </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▼</span>
+                <CustomSelect value={a.salesCycle} onChange={v => set('salesCycle', v)} options={SALES_CYCLES} placeholder="Select sales cycle..." />
               </div>
             </div>
             <div>
@@ -342,11 +359,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
             <div>
               <label className={lCls}>Q12 — Average deal size <span className="font-canela text-sm text-white/20 normal-case tracking-normal">Optional</span></label>
               <div className="relative">
-                <select value={a.dealSize} onChange={e => set('dealSize', e.target.value)} className={iCls + ' appearance-none cursor-pointer'}>
-                  <option value="">Select deal size...</option>
-                  {DEAL_SIZES.map(s => <option key={s}>{s}</option>)}
-                </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▼</span>
+                <CustomSelect value={a.dealSize} onChange={v => set('dealSize', v)} options={DEAL_SIZES} placeholder="Select deal size..." />
               </div>
             </div>
             <div>
