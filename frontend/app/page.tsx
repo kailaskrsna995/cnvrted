@@ -731,7 +731,7 @@ export default function Dashboard() {
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0 })
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('cnvrted_dark') === 'true')
+  const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('cnvrted_dark') === 'true')
 
   // Cleanup poll on unmount
   useEffect(() => {
