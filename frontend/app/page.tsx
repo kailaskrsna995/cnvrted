@@ -1188,7 +1188,7 @@ export default function Dashboard() {
                       <span className="font-mono-custom text-xs text-gray-600 truncate flex-1 mr-2">{cat}</span>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-black rounded-full" style={{ width: `${Math.round(((stats[cat] || 0) / allLeadStats.total) * 100)}%` }}/>
+                          <div className="h-full bg-black progress-dark rounded-full" style={{ width: `${Math.round(((stats[cat] || 0) / allLeadStats.total) * 100)}%` }}/>
                         </div>
                         <span className="font-mono-custom text-[10px] text-gray-400 w-6 text-right">{Math.round(((stats[cat] || 0) / allLeadStats.total) * 100)}%</span>
                       </div>
@@ -1349,7 +1349,7 @@ export default function Dashboard() {
                           {/* X */}
                           {lead.platform === 'twitter' && lead.source_url && (
                             <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
-                              className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition">
+                              className="icon-platform w-6 h-6 rounded border flex items-center justify-center hover:opacity-80 transition">
                               <svg width="9" height="9" viewBox="0 0 24 24" fill="black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.763l7.738-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                             </a>
                           )}
