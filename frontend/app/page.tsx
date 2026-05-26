@@ -1111,19 +1111,15 @@ export default function Dashboard() {
         <div className="flex-1 overflow-y-auto px-8 py-8">
           {/* Greeting */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <svg viewBox="0 0 100 50" width="42" height="21" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round">
-                <path d="M50,25 C50,10 63,10 72,25 C81,40 81,40 72,25 C63,10 50,10 50,25 C50,40 37,40 28,25 C19,10 19,10 28,25 C37,40 50,40 50,25"/>
-                <line x1="44" y1="30" x2="56" y2="20"/>
-                <polyline points="53,19 56,20 55,23"/>
-                <polyline points="47,31 44,30 45,27"/>
-              </svg>
+            <div className="flex items-center gap-2 justify-center mb-5">
+              <span className="font-mono-custom text-2xl font-bold tracking-widest uppercase text-black">cnvrted</span>
+              <span className="font-mono-custom text-[10px] text-gray-300 border border-black/10 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
             </div>
             <h2 className="font-canela text-3xl font-light text-black mb-2">
               {getGreeting()}, {firstName}
             </h2>
             <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">
-              How can I help you grow your pipeline today?
+              Your AI sales rep that finds buyers before they find you
             </p>
           </div>
 
