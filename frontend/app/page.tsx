@@ -1228,27 +1228,12 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Chat input */}
-          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-4 shadow-sm">
-            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendChat()}
-              placeholder="What kind of leads are you looking for today?"
-              className="w-full font-canela text-base text-black placeholder:text-gray-300 outline-none mb-4 bg-transparent"
-            />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                {scanning && <span className="font-mono-custom text-xs text-amber-500 uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"/> Scanning</span>}
-                {cooldownRemaining > 0 && <span className="font-mono-custom text-xs text-gray-400">Next scan in {formatCountdown(cooldownRemaining)}</span>}
-              </div>
-              <button onClick={sendChat} disabled={chatLoading || !searchQuery.trim()}
-                className="w-9 h-9 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition disabled:opacity-30 shrink-0">
-                {chatLoading ? <span className="w-2 h-2 bg-white rounded-full animate-pulse"/> : <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>}
-              </button>
-            </div>
-          </div>
+        </div>
 
+        {/* Floating chat bar — fixed at bottom */}
+        <div className="shrink-0 px-8 py-4 bg-white border-t border-gray-100">
           {chatMessages.length === 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap mb-3">
               {[
                 { icon: '👤', label: 'Show me top leads', action: () => setSearchQuery('show me top leads') },
                 { icon: '📊', label: 'Leads by industry', action: () => setSearchQuery('leads by industry') },
@@ -1264,6 +1249,19 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+          <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-3 flex items-center gap-3">
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendChat()}
+              placeholder="What kind of leads are you looking for today?"
+              className="flex-1 font-canela text-base text-black placeholder:text-gray-300 outline-none bg-transparent"
+            />
+            {scanning && <span className="font-mono-custom text-xs text-amber-500 flex items-center gap-1.5 shrink-0"><span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"/> Scanning</span>}
+            {cooldownRemaining > 0 && <span className="font-mono-custom text-xs text-gray-400 shrink-0">⏱ {formatCountdown(cooldownRemaining)}</span>}
+            <button onClick={sendChat} disabled={chatLoading || !searchQuery.trim()}
+              className="w-9 h-9 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition disabled:opacity-30 shrink-0">
+              {chatLoading ? <span className="w-2 h-2 bg-white rounded-full animate-pulse"/> : <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>}
+            </button>
+          </div>
         </div>
       </main>
 
@@ -1336,19 +1334,14 @@ export default function Dashboard() {
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                           </div>
                         )}
-                        {/* LinkedIn — goes to profile */}
-                        {lead.contact_linkedin ? (
-                          <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer"
+                        {/* LinkedIn — only for linkedin posts */}
+                        {lead.platform === 'linkedin' && (
+                          <a href={lead.contact_linkedin || lead.source_url || '#'} target="_blank" rel="noopener noreferrer"
                             className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
                             <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
                           </a>
-                        ) : lead.platform === 'linkedin' && lead.source_url ? (
-                          <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
-                            className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
-                            <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
-                          </a>
-                        ) : null}
-                        {/* X — goes to post */}
+                        )}
+                        {/* X — only for twitter posts, goes to post */}
                         {lead.platform === 'twitter' && lead.source_url && (
                           <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
                             className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition">
