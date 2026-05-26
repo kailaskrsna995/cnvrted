@@ -678,6 +678,16 @@ function ProfileModal({ userName, userPosition, savedLeadIds, onClose, onLogout 
   )
 }
 
+function extractFirstName(nameOrEmail: string): string {
+  if (!nameOrEmail) return ''
+  if (nameOrEmail.includes('@')) {
+    const local = nameOrEmail.split('@')[0]
+    const first = local.split(/[._]/)[0]
+    return first.charAt(0).toUpperCase() + first.slice(1)
+  }
+  return nameOrEmail.split(' ')[0]
+}
+
 function getGreeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
@@ -720,6 +730,7 @@ export default function Dashboard() {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0 })
 
   // Cleanup poll on unmount
   useEffect(() => {
@@ -862,12 +873,19 @@ export default function Dashboard() {
   }
 
   const fetchStats = async (uid: string | null) => {
-    let query = supabase.from('leads').select('category').eq('qualified', true)
+    let query = supabase.from('leads').select('category, timeline, platform').eq('qualified', true)
     if (uid) query = query.eq('user_id', uid)
     const { data } = await query
     const counts: Record<string, number> = {}
-    data?.forEach(r => { counts[r.category] = (counts[r.category] || 0) + 1 })
+    let urgent = 0, linkedin = 0, twitter = 0
+    data?.forEach(r => {
+      counts[r.category] = (counts[r.category] || 0) + 1
+      if (r.timeline === 'Urgent') urgent++
+      if (r.platform === 'linkedin') linkedin++
+      if (r.platform === 'twitter') twitter++
+    })
     setStats(counts)
+    setAllLeadStats({ total: data?.length || 0, qualified: data?.length || 0, urgent, linkedin, twitter })
   }
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -992,9 +1010,9 @@ export default function Dashboard() {
     )
   }
 
-  const urgentCount = leads.filter(l => l.timeline === 'Urgent').length
-  const totalLeadsCount = Object.values(stats).reduce((a, b) => a + b, 0)
   const categoryKeys = Object.keys(stats).filter(k => k && k !== 'None')
+  const hotCount = allLeadStats.urgent
+  const firstName = extractFirstName(userName)
 
   return (
     <div className="h-screen flex bg-gray-50 overflow-hidden">
@@ -1019,39 +1037,37 @@ export default function Dashboard() {
       )}
 
       {/* ── LEFT SIDEBAR ── */}
-      <aside className="w-56 bg-white border-r border-gray-100 flex flex-col h-screen shrink-0">
-        <div className="px-5 py-5 border-b border-gray-100">
+      <aside className="w-64 bg-white border-r border-gray-100 flex flex-col h-screen shrink-0">
+        <div className="px-5 py-5 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-mono-custom text-sm font-bold tracking-widest uppercase text-black">cnvrted</span>
             <span className="font-mono-custom text-[9px] text-gray-300 border border-black/10 px-1.5 py-0.5 uppercase tracking-widest leading-none">beta</span>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 flex flex-col overflow-hidden">
           <button onClick={() => setCategory('All')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition mb-1 ${category === 'All' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition mb-1 shrink-0 ${category === 'All' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             <span className="font-mono-custom text-xs uppercase tracking-wide">Overview</span>
           </button>
 
-          {categoryKeys.length > 0 && <p className="font-mono-custom text-[10px] text-gray-300 uppercase tracking-widest px-3 mb-1.5 mt-4">Categories</p>}
-          {categoryKeys.map(cat => (
-            <button key={cat} onClick={() => setCategory(cat)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition mb-0.5 ${category === cat ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-              <div className="flex items-center gap-3">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-                <span className="font-mono-custom text-xs uppercase tracking-wide truncate">{cat}</span>
-              </div>
-              <span className={`font-mono-custom text-[10px] px-1.5 py-0.5 rounded shrink-0 ${category === cat ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>{stats[cat] || 0}</span>
-            </button>
-          ))}
+          {categoryKeys.length > 0 && <p className="font-mono-custom text-[10px] text-gray-300 uppercase tracking-widest px-3 mb-1.5 mt-3 shrink-0">Categories</p>}
+          <div className="flex-1 overflow-hidden flex flex-col gap-0.5">
+            {categoryKeys.map(cat => (
+              <button key={cat} onClick={() => setCategory(cat)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition shrink-0 ${category === cat ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <span className="font-mono-custom text-xs uppercase tracking-wide truncate text-left flex-1 min-w-0 mr-2">{cat}</span>
+                <span className={`font-mono-custom text-[10px] px-1.5 py-0.5 rounded shrink-0 ${category === cat ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>{stats[cat] || 0}</span>
+              </button>
+            ))}
+          </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="pt-3 border-t border-gray-100 mt-3 shrink-0">
             <button onClick={() => setCategory('Saved')}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition ${category === 'Saved' ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               <div className="flex items-center gap-3">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill={category === 'Saved' ? 'white' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={category === 'Saved' ? 'white' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                 <span className="font-mono-custom text-xs uppercase tracking-wide">Saved</span>
               </div>
               {savedLeadIds.size > 0 && <span className={`font-mono-custom text-[10px] px-1.5 py-0.5 rounded ${category === 'Saved' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'}`}>{savedLeadIds.size}</span>}
@@ -1059,7 +1075,7 @@ export default function Dashboard() {
           </div>
         </nav>
 
-        <div className="px-4 py-4 border-t border-gray-100">
+        <div className="px-4 py-4 border-t border-gray-100 shrink-0">
           <button className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition">
             <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center font-mono-custom text-[10px]">?</div>
             <span className="font-mono-custom text-xs uppercase tracking-wide">Need help?</span>
@@ -1069,7 +1085,6 @@ export default function Dashboard() {
 
       {/* ── CENTER ── */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Top bar */}
         <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-100 shrink-0">
           <h1 className="font-canela text-xl font-medium text-black">
             {category === 'All' ? 'Overview' : category === 'Saved' ? 'Saved Leads' : category}
@@ -1083,20 +1098,18 @@ export default function Dashboard() {
             )}
             <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2.5 hover:opacity-80 transition">
               <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center font-canela text-white text-xs shrink-0">
-                {userName[0]?.toUpperCase() || '?'}
+                {firstName[0]?.toUpperCase() || '?'}
               </div>
               <div className="text-left">
-                <p className="font-canela text-sm font-medium text-black leading-tight">{userName}</p>
+                <p className="font-canela text-sm font-medium text-black leading-tight">{firstName}</p>
                 <p className="font-mono-custom text-[10px] text-gray-400 leading-tight">Pro Plan</p>
               </div>
             </button>
           </div>
         </div>
 
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-8 py-8">
-
-          {/* Greeting + logo */}
+          {/* Greeting */}
           <div className="text-center mb-8">
             <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mx-auto mb-5">
               <svg viewBox="0 0 100 50" width="42" height="21" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round">
@@ -1107,30 +1120,76 @@ export default function Dashboard() {
               </svg>
             </div>
             <h2 className="font-canela text-3xl font-light text-black mb-2">
-              {getGreeting()}, {userName.split(' ')[0] || userName}
+              {getGreeting()}, {firstName}
             </h2>
             <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest">
               How can I help you grow your pipeline today?
             </p>
           </div>
 
-          {/* Stat cards */}
+          {/* Stat cards — no graphs */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Leads', value: totalLeadsCount, sub: `all time` },
-              { label: 'Qualified', value: leads.length, sub: 'score ≥ 60' },
-              { label: 'Urgent', value: urgentCount, sub: 'need reply now' },
+              { label: 'Total Leads', value: allLeadStats.total, sub: 'all time' },
+              { label: 'Qualified', value: allLeadStats.qualified, sub: 'score ≥ 60' },
+              { label: 'Urgent', value: allLeadStats.urgent, sub: 'need reply now' },
               { label: 'Posts Scanned', value: scanStats.total_scanned, sub: `${scanStats.total_rejected} rejected` },
             ].map(card => (
               <div key={card.label} className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
                 <p className="font-mono-custom text-[10px] text-gray-400 uppercase tracking-widest mb-2">{card.label}</p>
                 <p className="font-canela text-3xl font-light text-black leading-none mb-1">{card.value}</p>
-                <div className="flex items-end justify-between mt-3">
-                  <p className="font-mono-custom text-[10px] text-gray-400">{card.sub}</p>
-                  <svg width="56" height="22" viewBox="0 0 56 22"><path d="M0 16 Q8 10 14 12 Q22 14 28 7 Q36 2 44 5 Q50 7 56 4" fill="none" stroke="#e5e7eb" strokeWidth="1.5"/></svg>
-                </div>
+                <p className="font-mono-custom text-[10px] text-gray-400 mt-3">{card.sub}</p>
               </div>
             ))}
+          </div>
+
+          {/* Leads by source + top industries */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+              <p className="font-mono-custom text-[10px] text-gray-400 uppercase tracking-widest mb-4">Leads by Source</p>
+              {allLeadStats.total > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {[
+                    { label: 'LinkedIn', count: allLeadStats.linkedin, color: 'bg-blue-500' },
+                    { label: 'X / Twitter', count: allLeadStats.twitter, color: 'bg-black' },
+                  ].map(s => (
+                    <div key={s.label} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono-custom text-xs text-gray-600">{s.label}</span>
+                          <span className="font-mono-custom text-xs text-gray-400">{Math.round((s.count / allLeadStats.total) * 100)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${s.color} rounded-full`} style={{ width: `${Math.round((s.count / allLeadStats.total) * 100)}%` }}/>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-mono-custom text-xs text-gray-300">No data yet</p>
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+              <p className="font-mono-custom text-[10px] text-gray-400 uppercase tracking-widest mb-4">Top Industries</p>
+              {categoryKeys.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {categoryKeys.slice(0, 4).map(cat => (
+                    <div key={cat} className="flex items-center justify-between">
+                      <span className="font-mono-custom text-xs text-gray-600 truncate flex-1 mr-2">{cat}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-black rounded-full" style={{ width: `${Math.round(((stats[cat] || 0) / allLeadStats.total) * 100)}%` }}/>
+                        </div>
+                        <span className="font-mono-custom text-[10px] text-gray-400 w-6 text-right">{Math.round(((stats[cat] || 0) / allLeadStats.total) * 100)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-mono-custom text-xs text-gray-300">No data yet</p>
+              )}
+            </div>
           </div>
 
           {/* Chat thread */}
@@ -1144,14 +1203,11 @@ export default function Dashboard() {
                       <div className="mt-3 pt-3 border-t border-black/10">
                         <div className="flex flex-wrap gap-1 mb-3">
                           {msg.scanParams.keywords.map(kw => (
-                            <span key={kw} className="font-mono-custom text-[10px] bg-white/20 px-2 py-0.5 rounded-full text-black/70">{kw}</span>
+                            <span key={kw} className="font-mono-custom text-[10px] bg-black/10 px-2 py-0.5 rounded-full text-black/70">{kw}</span>
                           ))}
                         </div>
-                        <button
-                          onClick={() => triggerIngest(msg.scanParams!)}
-                          disabled={scanning || loading}
-                          className="w-full font-mono-custom text-[10px] uppercase tracking-widest bg-black text-white px-3 py-2 rounded-lg hover:bg-gray-800 transition disabled:opacity-40"
-                        >
+                        <button onClick={() => triggerIngest(msg.scanParams!)} disabled={scanning || loading}
+                          className="w-full font-mono-custom text-[10px] uppercase tracking-widest bg-black text-white px-3 py-2 rounded-lg hover:bg-gray-800 transition disabled:opacity-40">
                           {scanning ? 'Scanning...' : 'Scan Now →'}
                         </button>
                       </div>
@@ -1174,47 +1230,30 @@ export default function Dashboard() {
 
           {/* Chat input */}
           <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-4 shadow-sm">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendChat()}
               placeholder="What kind of leads are you looking for today?"
               className="w-full font-canela text-base text-black placeholder:text-gray-300 outline-none mb-4 bg-transparent"
             />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                {scanning && (
-                  <span className="font-mono-custom text-xs text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"/> Scanning
-                  </span>
-                )}
-                {cooldownRemaining > 0 && (
-                  <span className="font-mono-custom text-xs text-gray-400">Next scan in {formatCountdown(cooldownRemaining)}</span>
-                )}
+                {scanning && <span className="font-mono-custom text-xs text-amber-500 uppercase tracking-widest flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"/> Scanning</span>}
+                {cooldownRemaining > 0 && <span className="font-mono-custom text-xs text-gray-400">Next scan in {formatCountdown(cooldownRemaining)}</span>}
               </div>
-              <button
-                onClick={sendChat}
-                disabled={chatLoading || !searchQuery.trim()}
-                className="w-9 h-9 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition disabled:opacity-30 shrink-0"
-              >
-                {chatLoading ? (
-                  <span className="w-2 h-2 bg-white rounded-full animate-pulse"/>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>
-                )}
+              <button onClick={sendChat} disabled={chatLoading || !searchQuery.trim()}
+                className="w-9 h-9 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition disabled:opacity-30 shrink-0">
+                {chatLoading ? <span className="w-2 h-2 bg-white rounded-full animate-pulse"/> : <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>}
               </button>
             </div>
           </div>
 
-          {/* Quick chips — only when no chat yet */}
           {chatMessages.length === 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               {[
-                { icon: '🏗️', label: 'DevOps leads', action: () => setSearchQuery('find me DevOps leads') },
-                { icon: '📈', label: 'Marketing agencies', action: () => setSearchQuery('marketing agency leads') },
-                { icon: '🤖', label: 'AI automation buyers', action: () => setSearchQuery('companies looking to automate with AI') },
-                { icon: '💼', label: 'B2B SaaS buyers', action: () => setSearchQuery('B2B SaaS buyers needing tools') },
+                { icon: '👤', label: 'Show me top leads', action: () => setSearchQuery('show me top leads') },
+                { icon: '📊', label: 'Leads by industry', action: () => setSearchQuery('leads by industry') },
+                { icon: '⏱', label: 'Recent activity', action: () => setSearchQuery('recent leads') },
+                { icon: '🔍', label: 'Help me analyze', action: () => setSearchQuery('analyze my leads') },
                 ...suggestedDomains.slice(0, 2).map(d => ({ icon: '⚡', label: d, action: () => setSearchQuery(d) })),
               ].map(chip => (
                 <button key={chip.label} onClick={chip.action}
@@ -1228,8 +1267,8 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ── RIGHT PANEL — LEADS ── */}
-      <aside className="w-80 bg-white border-l border-gray-100 flex flex-col h-screen shrink-0">
+      {/* ── RIGHT PANEL ── */}
+      <aside className="w-96 bg-white border-l border-gray-100 flex flex-col h-screen shrink-0">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-sm">🔥</span>
@@ -1237,7 +1276,7 @@ export default function Dashboard() {
               {category === 'Saved' ? 'Saved Leads' : 'Hot Leads'}
             </span>
           </div>
-          <span className="font-mono-custom text-xs text-gray-400">{leads.length}</span>
+          <span className="font-mono-custom text-xs font-bold text-black">{leads.length}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -1252,32 +1291,34 @@ export default function Dashboard() {
             leads.map(lead => {
               const hasEmail = !!lead.contact_email
               const emailRevealed = revealedEmails.has(lead.lead_id)
-              const phoneRevealed = revealedPhones.has(lead.lead_id)
               const initials = (lead.author || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
               const isHot = lead.timeline === 'Urgent'
               const isWarm = lead.timeline === 'Active'
               return (
-                <div key={lead.id} className="px-4 py-4 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer"
-                  onClick={() => setPreviewLead(lead)}>
+                <div key={lead.id} className="px-4 py-4 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer" onClick={() => setPreviewLead(lead)}>
                   <div className="flex items-start gap-3">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarBg(lead.author || '')}`}>
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <p className="font-canela text-sm font-medium text-black truncate">{lead.author}</p>
-                        <span className={`shrink-0 font-mono-custom text-[9px] px-1.5 py-0.5 uppercase tracking-wide ${isHot ? 'bg-black text-white' : isWarm ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                          {isHot ? 'Hot' : isWarm ? 'Warm' : 'Cool'}
-                        </span>
+                        <p className="font-canela text-sm font-semibold text-black truncate">{lead.author}</p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="font-mono-custom text-[9px] text-gray-400">{lead.intent_score}</span>
+                          <span className={`font-mono-custom text-[9px] px-1.5 py-0.5 uppercase tracking-wide ${isHot ? 'bg-black text-white' : isWarm ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            {isHot ? 'Hot' : isWarm ? 'Warm' : 'Cool'}
+                          </span>
+                        </div>
                       </div>
+                      {lead.company && <p className="font-mono-custom text-[11px] text-gray-700 font-medium mb-0.5 truncate">{lead.company}</p>}
                       <p className="font-mono-custom text-[10px] text-gray-400 mb-1.5 truncate">
-                        {[lead.profession, lead.company].filter(Boolean).join(' at ')}
+                        {[lead.profession, lead.company].filter(Boolean).join(' · ')}
                       </p>
                       {lead.exact_need && (
                         <p className="font-mono-custom text-[11px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{lead.exact_need}</p>
                       )}
                       <div className="flex items-center gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
-                        {/* Email icon */}
+                        {/* Email */}
                         {hasEmail ? (
                           emailRevealed ? (
                             <a href={`mailto:${lead.contact_email}`} title={lead.contact_email}
@@ -1295,14 +1336,19 @@ export default function Dashboard() {
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                           </div>
                         )}
-                        {/* LinkedIn icon */}
-                        {lead.contact_linkedin && (
+                        {/* LinkedIn — goes to profile */}
+                        {lead.contact_linkedin ? (
                           <a href={lead.contact_linkedin} target="_blank" rel="noopener noreferrer"
                             className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
                             <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
                           </a>
-                        )}
-                        {/* X icon */}
+                        ) : lead.platform === 'linkedin' && lead.source_url ? (
+                          <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
+                            className="w-6 h-6 rounded border border-blue-100 bg-blue-50 flex items-center justify-center hover:bg-blue-100 transition">
+                            <svg width="10" height="10" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#0A66C2"/><path d="M7.5 9.5H5v9h2.5v-9zm-1.25-4a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zM19 13.5c0-2.5-1.5-4-3.5-4a3.5 3.5 0 0 0-2.5 1V9.5H10.5v9H13v-5c0-1 .5-2 1.75-2S16.5 13 16.5 14v4.5H19V13.5z" fill="white"/></svg>
+                          </a>
+                        ) : null}
+                        {/* X — goes to post */}
                         {lead.platform === 'twitter' && lead.source_url && (
                           <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
                             className="w-6 h-6 rounded border border-gray-100 bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition">
@@ -1314,10 +1360,7 @@ export default function Dashboard() {
                           className={`ml-auto text-base leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-200 hover:text-gray-400'}`}>
                           {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
                         </button>
-                        {/* Time */}
-                        <span className="font-mono-custom text-[9px] text-gray-300">
-                          {lead.platform === 'linkedin' ? formatRelativeTime(lead.posted_at) : formatRelativeTime(lead.posted_at)}
-                        </span>
+                        <span className="font-mono-custom text-[9px] text-gray-300">{formatRelativeTime(lead.posted_at)}</span>
                       </div>
                     </div>
                   </div>
@@ -1325,23 +1368,6 @@ export default function Dashboard() {
               )
             })
           )}
-        </div>
-
-        <div className="px-4 py-4 border-t border-gray-100 shrink-0">
-          <button
-            onClick={() => triggerIngest()}
-            disabled={loading || scanning || cooldownRemaining > 0}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-black text-white font-mono-custom text-xs uppercase tracking-widest rounded-lg hover:bg-gray-900 transition disabled:opacity-40"
-          >
-            {scanning ? (
-              <>
-                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
-                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
-                <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
-                <span>Scanning...</span>
-              </>
-            ) : loading ? 'Starting...' : cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : 'View all leads →'}
-          </button>
         </div>
       </aside>
     </div>
