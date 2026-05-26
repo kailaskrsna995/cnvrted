@@ -733,6 +733,11 @@ export default function Dashboard() {
   const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0 })
   const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('cnvrted_dark') === 'true')
 
+  useEffect(() => {
+    if (darkMode) document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+  }, [darkMode])
+
   // Cleanup poll on unmount
   useEffect(() => {
     return () => { if (scanPollRef.current) clearInterval(scanPollRef.current) }
@@ -1016,7 +1021,7 @@ export default function Dashboard() {
   const firstName = extractFirstName(userName)
 
   return (
-    <div className={`h-screen flex bg-gray-50 overflow-hidden${darkMode ? ' dark' : ''}`}>
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {profileOpen && (
         <ProfileModal
           userName={userName}
