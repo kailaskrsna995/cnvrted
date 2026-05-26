@@ -1290,13 +1290,9 @@ export default function Dashboard() {
       {/* ── RIGHT PANEL ── */}
       <aside className="w-96 bg-white border-l border-gray-100 flex flex-col h-screen shrink-0">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">🔥</span>
-            <span className="font-mono-custom text-xs font-bold uppercase tracking-widest text-black">
-              {category === 'Saved' ? 'Saved Leads' : 'Hot Leads'}
-            </span>
-          </div>
-          <span className="font-mono-custom text-xs font-bold text-black">{leads.length}</span>
+          <span className="font-mono-custom text-xs font-bold uppercase tracking-widest text-black">
+            {category === 'Saved' ? 'Saved' : 'Leads'}
+          </span>
         </div>
 
         <div className="flex-1 overflow-y-auto">
