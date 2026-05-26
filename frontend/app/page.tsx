@@ -716,6 +716,11 @@ export default function Dashboard() {
   const togglePhone = (id: string) => setRevealedPhones(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  type ChatMsg = { role: 'user' | 'ai'; text: string; scanParams?: { domain: string; keywords: string[] } }
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
   // Cleanup poll on unmount
   useEffect(() => {
     return () => { if (scanPollRef.current) clearInterval(scanPollRef.current) }
@@ -881,32 +886,41 @@ export default function Dashboard() {
     setSearchLoading(false)
   }
 
-  const triggerIngest = async () => {
-    if (cooldownRemaining > 0 || loading || scanning) return
-
-    // Always re-resolve from current search box — never use stale activeSearch
-    let search: ActiveSearch | null = null
-    if (searchQuery.trim()) {
-      setSearchLoading(true)
-      try {
-        const res = await fetch(`${API}/search/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ raw_query: searchQuery.trim() })
-        })
-        search = await res.json()
-        setActiveSearch(search)
-      } catch {}
-      setSearchLoading(false)
+  const sendChat = async () => {
+    if (!searchQuery.trim() || chatLoading) return
+    const userMsg = searchQuery.trim()
+    setSearchQuery('')
+    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }])
+    setChatLoading(true)
+    try {
+      const res = await fetch(`${API}/chat/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, message: userMsg })
+      })
+      const data = await res.json()
+      setChatMessages(prev => [...prev, {
+        role: 'ai',
+        text: `Found ${data.keywords?.length || 0} keywords for "${data.domain}"`,
+        scanParams: { domain: data.domain, keywords: data.keywords || [] }
+      }])
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'ai', text: 'Something went wrong. Try again.' }])
     }
+    setChatLoading(false)
+  }
+
+  const triggerIngest = async (params?: { keywords: string[]; domain: string }) => {
+    if (cooldownRemaining > 0 || loading || scanning) return
 
     setLoading(true)
     try {
       const body: Record<string, unknown> = {}
       if (userId) body.user_id = userId
-      if (search) {
-        body.keywords = search.keywords
-        body.domain = search.domain
+      if (params) {
+        body.keywords = params.keywords
+        body.domain = params.domain
       }
 
       const res = await fetch(`${API}/ingest/`, {
@@ -1119,34 +1133,72 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Search / Scan input */}
+          {/* Chat thread */}
+          {chatMessages.length > 0 && (
+            <div className="mb-4 flex flex-col gap-3">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs ${msg.role === 'user' ? 'bg-black text-white' : 'bg-gray-100 text-black'} rounded-2xl px-4 py-3`}>
+                    <p className="font-mono-custom text-xs leading-relaxed">{msg.text}</p>
+                    {msg.scanParams && (
+                      <div className="mt-3 pt-3 border-t border-black/10">
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {msg.scanParams.keywords.map(kw => (
+                            <span key={kw} className="font-mono-custom text-[10px] bg-white/20 px-2 py-0.5 rounded-full text-black/70">{kw}</span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => triggerIngest(msg.scanParams!)}
+                          disabled={scanning || loading}
+                          className="w-full font-mono-custom text-[10px] uppercase tracking-widest bg-black text-white px-3 py-2 rounded-lg hover:bg-gray-800 transition disabled:opacity-40"
+                        >
+                          {scanning ? 'Scanning...' : 'Scan Now →'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 rounded-2xl px-4 py-3 flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
+                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
+                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef}/>
+            </div>
+          )}
+
+          {/* Chat input */}
           <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-4 shadow-sm">
             <input
               type="text"
               value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setActiveSearch(null) }}
-              onKeyDown={e => e.key === 'Enter' && triggerIngest()}
-              placeholder="Ask anything about your leads, prospects, or accounts..."
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendChat()}
+              placeholder="What kind of leads are you looking for today?"
               className="w-full font-canela text-base text-black placeholder:text-gray-300 outline-none mb-4 bg-transparent"
             />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <button className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-300 transition">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                </button>
-                <button className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-300 transition">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/></svg>
-                </button>
-                {activeSearch && (
-                  <span className="font-mono-custom text-xs text-gray-400 ml-2">Domain: <span className="text-black">{activeSearch.domain}</span></span>
+                {scanning && (
+                  <span className="font-mono-custom text-xs text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"/> Scanning
+                  </span>
+                )}
+                {cooldownRemaining > 0 && (
+                  <span className="font-mono-custom text-xs text-gray-400">Next scan in {formatCountdown(cooldownRemaining)}</span>
                 )}
               </div>
               <button
-                onClick={triggerIngest}
-                disabled={loading || scanning || cooldownRemaining > 0}
+                onClick={sendChat}
+                disabled={chatLoading || !searchQuery.trim()}
                 className="w-9 h-9 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition disabled:opacity-30 shrink-0"
               >
-                {scanning ? (
+                {chatLoading ? (
                   <span className="w-2 h-2 bg-white rounded-full animate-pulse"/>
                 ) : (
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>
@@ -1155,27 +1207,23 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Quick chips */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {[
-              { icon: '👤', label: 'Show me top leads', action: () => {} },
-              { icon: '📊', label: 'Leads by industry', action: () => setCategory('All') },
-              { icon: '⏱', label: 'Recent activity', action: () => {} },
-              { icon: '🔍', label: 'Help me analyze', action: () => {} },
-              ...suggestedDomains.slice(0, 2).map(d => ({ icon: '⚡', label: d, action: () => setSearchQuery(d) })),
-            ].map(chip => (
-              <button key={chip.label} onClick={chip.action}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition shadow-sm">
-                <span className="text-xs">{chip.icon}</span>
-                <span className="font-mono-custom text-xs text-gray-600">{chip.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {cooldownRemaining > 0 && (
-            <p className="font-mono-custom text-xs text-gray-300 text-center mt-6 uppercase tracking-widest">
-              Next scan in {formatCountdown(cooldownRemaining)}
-            </p>
+          {/* Quick chips — only when no chat yet */}
+          {chatMessages.length === 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { icon: '🏗️', label: 'DevOps leads', action: () => setSearchQuery('find me DevOps leads') },
+                { icon: '📈', label: 'Marketing agencies', action: () => setSearchQuery('marketing agency leads') },
+                { icon: '🤖', label: 'AI automation buyers', action: () => setSearchQuery('companies looking to automate with AI') },
+                { icon: '💼', label: 'B2B SaaS buyers', action: () => setSearchQuery('B2B SaaS buyers needing tools') },
+                ...suggestedDomains.slice(0, 2).map(d => ({ icon: '⚡', label: d, action: () => setSearchQuery(d) })),
+              ].map(chip => (
+                <button key={chip.label} onClick={chip.action}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition shadow-sm">
+                  <span className="text-xs">{chip.icon}</span>
+                  <span className="font-mono-custom text-xs text-gray-600">{chip.label}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </main>
