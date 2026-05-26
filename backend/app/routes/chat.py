@@ -1,8 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from app.database import supabase
 from app.scorer import map_query_to_search
+import traceback
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -17,12 +18,12 @@ def chat(req: ChatRequest):
     # Fetch user context from onboarding
     context_parts = []
     if req.user_id:
-        result = supabase.table("users").select("service_offering, icp, onboarding_data").eq("id", req.user_id).execute()
+        result = supabase.table("users").select("service_offering, onboarding_data").eq("id", req.user_id).execute()
         if result.data:
             u = result.data[0]
             od = u.get("onboarding_data") or {}
             svc = u.get("service_offering") or od.get("company_do", "")
-            icp = u.get("icp") or od.get("icp", "")
+            icp = od.get("icp", "")
             if svc:
                 context_parts.append(f"sells: {svc}")
             if icp:
@@ -32,8 +33,12 @@ def chat(req: ChatRequest):
     if context_parts:
         enriched = f"{req.message}. Context: {', '.join(context_parts)}"
 
-    result = map_query_to_search(enriched)
-    return {
-        "domain": result.get("domain", ""),
-        "keywords": result.get("keywords", []),
-    }
+    try:
+        result = map_query_to_search(enriched)
+        return {
+            "domain": result.get("domain", ""),
+            "keywords": result.get("keywords", []),
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
