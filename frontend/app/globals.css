@@ -41,3 +41,24 @@ body {
     linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
   background-size: 40px 40px;
 }
+
+/* ── Dark mode overrides ─────────────────────────────────────────────────── */
+.dark { color-scheme: dark; }
+.dark .bg-white          { background-color: #111111 !important; }
+.dark .bg-gray-50        { background-color: #0a0a0a !important; }
+.dark .bg-gray-100       { background-color: #1c1c1c !important; }
+.dark .bg-gray-200       { background-color: #222222 !important; }
+.dark .border-gray-50    { border-color: #1f1f1f !important; }
+.dark .border-gray-100   { border-color: #222222 !important; }
+.dark .border-gray-200   { border-color: #2a2a2a !important; }
+.dark .text-black        { color: #f4f4f5 !important; }
+.dark .text-gray-600     { color: #a1a1aa !important; }
+.dark .text-gray-500     { color: #71717a !important; }
+.dark .text-gray-400     { color: #52525b !important; }
+.dark .text-gray-300     { color: #3f3f46 !important; }
+.dark .hover\:bg-gray-50:hover  { background-color: #1c1c1c !important; }
+.dark .hover\:bg-gray-100:hover { background-color: #222222 !important; }
+.dark .shadow-sm         { box-shadow: 0 1px 3px rgba(0,0,0,0.6) !important; }
+.dark input              { color: #f4f4f5 !important; }
+.dark input::placeholder { color: #3f3f46 !important; }
+.dark .font-canela       { color: inherit; }
