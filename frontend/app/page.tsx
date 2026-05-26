@@ -1329,7 +1329,7 @@ export default function Dashboard() {
 
         <div className="px-4 py-4 border-t border-gray-100 shrink-0">
           <button
-            onClick={triggerIngest}
+            onClick={() => triggerIngest()}
             disabled={loading || scanning || cooldownRemaining > 0}
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-black text-white font-mono-custom text-xs uppercase tracking-widest rounded-lg hover:bg-gray-900 transition disabled:opacity-40"
           >
