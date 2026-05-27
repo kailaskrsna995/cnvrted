@@ -763,6 +763,8 @@ export default function Dashboard() {
   ])
   const [chatLoading, setChatLoading] = useState(false)
   const [lastScanParams, setLastScanParams] = useState<{ domain: string; keywords: string[] } | null>(null)
+  const [rightPanelWidth, setRightPanelWidth] = useState(384)
+  const isResizing = useRef(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0, indiehackers: 0 })
   const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('cnvrted_dark') === 'true')
@@ -913,21 +915,24 @@ export default function Dashboard() {
   }
 
   const fetchStats = async (uid: string | null) => {
-    let query = supabase.from('leads').select('category, timeline, platform').eq('qualified', true)
+    let query = supabase.from('leads').select('category, timeline, platform, intent_score, qualified')
     if (uid) query = query.eq('user_id', uid)
     const { data } = await query
     const counts: Record<string, number> = {}
-    let urgent = 0, linkedin = 0, twitter = 0, reddit = 0, indiehackers = 0
+    let qualified = 0, urgent = 0, linkedin = 0, twitter = 0, reddit = 0, indiehackers = 0
     data?.forEach(r => {
-      counts[r.category] = (counts[r.category] || 0) + 1
-      if (r.timeline === 'Urgent') urgent++
-      if (r.platform === 'linkedin') linkedin++
-      if (r.platform === 'twitter') twitter++
-      if (r.platform === 'reddit') reddit++
-      if (r.platform === 'indiehackers') indiehackers++
+      if (r.qualified) {
+        counts[r.category] = (counts[r.category] || 0) + 1
+        if (r.timeline === 'Urgent') urgent++
+        if (r.platform === 'linkedin') linkedin++
+        if (r.platform === 'twitter') twitter++
+        if (r.platform === 'reddit') reddit++
+        if (r.platform === 'indiehackers') indiehackers++
+      }
+      if ((r.intent_score || 0) >= 60) qualified++
     })
     setStats(counts)
-    setAllLeadStats({ total: data?.length || 0, qualified: data?.length || 0, urgent, linkedin, twitter, reddit, indiehackers })
+    setAllLeadStats({ total: data?.length || 0, qualified, urgent, linkedin, twitter, reddit, indiehackers })
   }
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -1324,7 +1329,32 @@ export default function Dashboard() {
       </main>
 
       {/* ── RIGHT PANEL ── */}
-      <aside className="w-96 bg-white border-l border-gray-100 flex flex-col h-screen shrink-0">
+      <aside
+        style={{ width: rightPanelWidth }}
+        className="bg-white border-l border-gray-100 flex flex-col h-screen shrink-0 relative"
+      >
+        {/* Drag handle */}
+        <div
+          className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-black/10 transition-colors z-10"
+          onMouseDown={e => {
+            e.preventDefault()
+            isResizing.current = true
+            const startX = e.clientX
+            const startW = rightPanelWidth
+            const onMove = (ev: MouseEvent) => {
+              if (!isResizing.current) return
+              const delta = startX - ev.clientX
+              setRightPanelWidth(Math.min(700, Math.max(280, startW + delta)))
+            }
+            const onUp = () => {
+              isResizing.current = false
+              window.removeEventListener('mousemove', onMove)
+              window.removeEventListener('mouseup', onUp)
+            }
+            window.addEventListener('mousemove', onMove)
+            window.addEventListener('mouseup', onUp)
+          }}
+        />
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <span className="font-mono-custom text-xs font-bold uppercase tracking-widest text-black">
             {category === 'Saved' ? 'Saved' : 'Leads'}
