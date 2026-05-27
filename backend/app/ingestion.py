@@ -347,10 +347,12 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
 
 # Buyer-intent subreddits — people posting these are looking to pay for things
 BUYER_SUBREDDITS = (
-    "entrepreneur+smallbusiness+forhire+freelance+startups"
-    "+SaaS+digitalnomad+agency+businessowners+ecommerce"
-    "+marketing+webdev+growthhacking+hiring"
+    "entrepreneur+smallbusiness+startups+SaaS"
+    "+businessowners+ecommerce+marketing+Entrepreneur"
+    "+smallbusinessowners+growmybusiness+agency"
 )
+# Removed: forhire (sellers advertising themselves), freelance (same problem),
+# hiring (employee job posts), digitalnomad (off topic), webdev (too technical)
 
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     from urllib.parse import quote
@@ -567,23 +569,21 @@ async def run_ingestion(
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
         reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in reddit_keyword_map]
-        # IH disabled — actor was broken, re-enable once a reliable scraper is found
+        # Twitter disabled — returns political news + random tweets, not buyer content
+        # IH disabled — actor was broken
         all_results = await asyncio.gather(
-            *linkedin_tasks, *twitter_tasks, *reddit_tasks,
+            *linkedin_tasks, *reddit_tasks,
             return_exceptions=True
         )
 
         n  = len(keyword_map)
         nr = len(reddit_keyword_map)
         linkedin_results = all_results[:n]
-        twitter_results  = all_results[n:2*n]
-        reddit_results   = all_results[2*n:2*n+nr]
+        reddit_results   = all_results[n:n+nr]
 
         for platform_label, km, platform_results in [
             ("LinkedIn", keyword_map,        linkedin_results),
-            ("Twitter",  keyword_map,        twitter_results),
             ("Reddit",   reddit_keyword_map, reddit_results),
         ]:
             for (category, keyword), posts in zip(km, platform_results):

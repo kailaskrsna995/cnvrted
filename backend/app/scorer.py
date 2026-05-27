@@ -108,25 +108,36 @@ Return JSON only. No explanation.
 
 SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services.
 
-Buyers post their PROBLEM or ask their network for recommendations. Search for pain points + recommendation requests.
+The #1 rule: every keyword MUST start with an explicit buyer phrase. This stops LinkedIn from surfacing thought leaders and service providers writing ABOUT the topic.
 
-Good keyword patterns:
-- "recommend [specific freelancer/agency type]" e.g. "recommend freelance developer"
-- "need help [specific task]" e.g. "need help building app"
-- "anyone know [service]" e.g. "anyone know good developer"
-- "looking for freelancer [task]" e.g. "looking for freelancer build website"
+ALWAYS start keywords with one of:
+- "can anyone recommend"
+- "looking for a good"
+- "need help finding"
+- "anyone used a"
+- "we need a"
+- "who do you recommend"
+- "looking to outsource"
+
+BAD (returns thought leaders writing about the topic):
+- "video production tips"
+- "AI automation strategy"
+- "marketing agency trends"
+
+GOOD (returns actual buyers asking their network):
+- "can anyone recommend video production company"
+- "looking for a good AI automation agency"
+- "we need a marketing consultant recommend"
 
 RULES:
-- AVOID "#hiring", "open position", "job opening" — returns HR/recruiter posts
-- USE "looking to hire freelancer", "want to hire contractor" — these are buyers
-- Use "freelancer", "agency", "contractor", "outsource" — signals someone buying a service
-- Keep phrases 3-5 words
-- Think: business owner or creative professional needing to pay someone for a specific project
+- AVOID "#hiring", "open position", "job opening" — returns HR/recruiter posts for employees
+- Keep phrases 4-6 words
+- Be specific to the domain
 
-Given a query, generate 4 question-style buyer-intent keyword phrases for that exact domain.
+Given a query, generate 4 buyer-intent keyword phrases for that exact domain.
 
 Return JSON only. No explanation.
-{"domain": "clean industry label (e.g. Aerospace & Defense)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
+{"domain": "clean industry label (e.g. Video Production)", "keywords": ["phrase1", "phrase2", "phrase3", "phrase4"]}"""
 
 # ── LLM caller ────────────────────────────────────────────────────────────────
 def _call_llm(system, user_content: str, temperature: float = 0.1, max_tokens: int = 256, model: str = "claude-haiku-4-5-20251001") -> str:
