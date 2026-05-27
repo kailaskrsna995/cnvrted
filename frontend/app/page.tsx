@@ -411,6 +411,7 @@ function OnboardingQuestionnaire({ userId, onComplete }: {
 }
 
 function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }) {
+  const [outreachCopied, setOutreachCopied] = useState(false)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white w-full max-w-2xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -441,10 +442,11 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(lead.outreach_line!)
-                  setCopiedOutreach(prev => { const s = new Set(prev); s.add(lead.lead_id); setTimeout(() => setCopiedOutreach(p => { const n = new Set(p); n.delete(lead.lead_id); return n }), 2000); return s })
+                  setOutreachCopied(true)
+                  setTimeout(() => setOutreachCopied(false), 2000)
                 }}
                 className="font-mono-custom text-[10px] border border-black px-3 py-1 hover:bg-black hover:text-white transition">
-                {copiedOutreach.has(lead.lead_id) ? '✓ Copied' : 'Copy'}
+                {outreachCopied ? '✓ Copied' : 'Copy'}
               </button>
             </div>
           )}
