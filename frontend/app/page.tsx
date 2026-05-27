@@ -413,10 +413,10 @@ export default function Dashboard() {
   return (
     <div className="h-screen flex bg-[#030308] overflow-hidden relative">
 
-      {/* Ambient glows */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-indigo-600/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-1/4 w-[500px] h-[400px] bg-violet-600/5 rounded-full blur-[120px]" />
+      {/* Wave background */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="wave-fill" />
+        <div className="wave-glow" />
       </div>
 
       {/* ── Modals ── */}

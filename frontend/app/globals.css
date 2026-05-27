@@ -45,6 +45,53 @@ html, body {
   --tw-prose-pre-bg: rgba(255,255,255,0.05);
 }
 
+/* ── Wave background ────────────────────────────────────────────────────────── */
+@keyframes morphWave {
+  0%   { border-radius: 60% 40% 30% 70% / 55% 35% 65% 45%; transform: rotate(-2deg) scale(1); }
+  20%  { border-radius: 55% 45% 38% 62% / 62% 28% 72% 38%; transform: rotate(-1deg) scale(1.01); }
+  40%  { border-radius: 50% 50% 42% 58% / 65% 25% 75% 35%; transform: rotate(-3deg) scale(0.99); }
+  60%  { border-radius: 58% 42% 35% 65% / 58% 32% 68% 42%; transform: rotate(-1.5deg) scale(1.015); }
+  80%  { border-radius: 52% 48% 40% 60% / 56% 36% 64% 44%; transform: rotate(-2.5deg) scale(0.995); }
+  100% { border-radius: 60% 40% 30% 70% / 55% 35% 65% 45%; transform: rotate(-2deg) scale(1); }
+}
+
+.wave-fill {
+  position: absolute;
+  width: 130vw;
+  height: 130vh;
+  bottom: -65vh;
+  left: -35vw;
+  background: radial-gradient(
+    ellipse at 55% 42%,
+    rgba(110, 40, 200, 0.55) 0%,
+    rgba(75, 20, 155, 0.38) 35%,
+    rgba(40, 10, 100, 0.18) 60%,
+    transparent 85%
+  );
+  border-radius: 60% 40% 30% 70% / 55% 35% 65% 45%;
+  filter: blur(55px);
+  animation: morphWave 22s ease-in-out infinite;
+  will-change: border-radius, transform;
+}
+
+.wave-glow {
+  position: absolute;
+  width: 130vw;
+  height: 130vh;
+  bottom: -65vh;
+  left: -35vw;
+  background: transparent;
+  border-radius: 60% 40% 30% 70% / 55% 35% 65% 45%;
+  border: 1px solid rgba(80, 210, 255, 0.28);
+  box-shadow:
+    0  0 40px rgba(80, 210, 255, 0.14),
+    0  0 80px rgba(80, 210, 255, 0.07),
+    inset 0 0 30px rgba(80, 210, 255, 0.04);
+  filter: blur(1.5px);
+  animation: morphWave 22s ease-in-out infinite;
+  will-change: border-radius, transform;
+}
+
 /* ── Animations ─────────────────────────────────────────────────────────────── */
 @keyframes grain {
   0%,100% { transform: translate(0,0) }
