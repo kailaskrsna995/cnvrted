@@ -22,7 +22,7 @@ KEYWORDS = {
 }
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
-REDDIT_ACTOR = "automation-lab~reddit-scraper"
+REDDIT_ACTOR = "trudax~reddit-scraper"
 TWITTER_ACTOR = "apidojo~tweet-scraper"
 
 def generate_lead_id(url: str, text: str, author: str) -> str:
@@ -322,32 +322,37 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
 
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
-        "searchQuery": keyword,
+        "searches": [keyword],
         "sort": "new",
-        "timeFilter": "week",
-        "maxPostsPerSource": 25,
-        "includeComments": False,
-        "maxCommentsPerPost": 0,
+        "time": "week",
+        "maxItems": 25,
+        "maxComments": 0,
+        "proxy": {"useApifyProxy": True},
     }, "Reddit")
     print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
     normalised = []
     for item in raw_items:
+        # Skip comments, only process posts
+        if item.get("dataType") and item.get("dataType") != "post":
+            continue
         title = item.get("title", "")
-        body = item.get("body", item.get("selftext", ""))
-        text = f"{title}\n{body}".strip()
-        permalink = item.get("permalink", item.get("url", ""))
-        if permalink and not permalink.startswith("http"):
-            permalink = f"https://reddit.com{permalink}"
+        body = item.get("body", "")
+        text = f"{title}\n{body}".strip() if body else title
+        if not text:
+            continue
+        url = item.get("url", "")
+        username = item.get("username", "Reddit User")
+        community = item.get("communityName", item.get("parsedCommunityName", ""))
         normalised.append({
             "text": text,
             "author": {
-                "firstName": item.get("username", item.get("author", "Reddit User")),
+                "firstName": username,
                 "lastName": "",
-                "occupation": f"r/{item.get('subreddit', item.get('community', ''))}",
+                "occupation": community,
                 "publicId": "",
             },
-            "url": permalink,
-            "postedAt": item.get("createdAt") or item.get("created_utc"),
+            "url": url,
+            "postedAt": item.get("createdAt"),
             "_platform": "reddit",
         })
     return normalised
@@ -416,16 +421,17 @@ async def run_ingestion(
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
-        # LinkedIn + Twitter only
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        twitter_tasks = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
-        all_results = await asyncio.gather(*linkedin_tasks, *twitter_tasks, return_exceptions=True)
+        twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
+        reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in keyword_map]
+        all_results = await asyncio.gather(*linkedin_tasks, *twitter_tasks, *reddit_tasks, return_exceptions=True)
 
         n = len(keyword_map)
         linkedin_results = all_results[:n]
-        twitter_results = all_results[n:]
+        twitter_results  = all_results[n:2*n]
+        reddit_results   = all_results[2*n:]
 
-        for platform_label, platform_results in [("LinkedIn", linkedin_results), ("Twitter", twitter_results)]:
+        for platform_label, platform_results in [("LinkedIn", linkedin_results), ("Twitter", twitter_results), ("Reddit", reddit_results)]:
             for (category, keyword), posts in zip(keyword_map, platform_results):
                 if isinstance(posts, Exception):
                     print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
