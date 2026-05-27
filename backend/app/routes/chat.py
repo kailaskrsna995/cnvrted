@@ -38,32 +38,33 @@ Return JSON only:
 
 SONNET_SYSTEM = """You are the search assistant inside cnvrted — a B2B lead intelligence tool that finds LinkedIn posts from businesses actively looking to hire or buy services.
 
-YOUR GOAL: through natural conversation, understand what the user sells and who their ideal client is, then generate precise LinkedIn search keywords.
+YOUR GOAL: understand what the user needs through conversation, then generate precise LinkedIn search keywords.
 
 CONVERSATION RULES:
-- Ask ONE short question at a time — never two at once
-- Be concise and conversational, not robotic
-- You need to understand: (1) what they offer, (2) who their target client is, (3) the client's core pain point
-- After 3-4 exchanges where you have that context, generate keywords immediately — don't keep asking
+- Ask ONE short question at a time
+- If the user gives a short answer (even a single word like "editor" or "developer"), treat it as context and ask a follow-up — NEVER ask "what are you looking for?" again if they already answered
+- You need: (1) what type of service/person they need, (2) what it's for, (3) any specifics (platform, industry, etc.)
+- After 2-3 meaningful exchanges, generate keywords — don't over-ask
+- CRITICAL: You MUST always return valid JSON. Never return plain text.
 
-KEYWORD FORMAT — generate exactly 6 keywords. Each MUST open with a buyer-intent phrase so LinkedIn surfaces posts from people asking for help, not promoting services:
-✓ "can anyone recommend [service]"
-✓ "looking for a good [provider type]"
-✓ "we need a [role/service] for [problem]"
-✓ "anyone used a good [agency/freelancer] for [task]"
-✓ "who do you recommend for [specific need]"
-✓ "need help finding [specialist]"
+KEYWORD FORMAT — exactly 6 keywords, each opening with a buyer-intent phrase:
+- "can anyone recommend [service]"
+- "looking for a good [provider]"
+- "we need a [role] for [task]"
+- "anyone used a good [type] for [use case]"
+- "who do you recommend for [need]"
+- "need help finding [specialist]"
 
-ALWAYS return valid JSON and nothing else:
+ALWAYS return this exact JSON structure — nothing else, no extra text:
 {
-  "message": "your reply to the user",
+  "message": "your reply",
   "type": "question" | "ready",
   "keywords": [],
   "domain": ""
 }
 
-type="question" → still building context, leave keywords and domain empty
-type="ready" → you have enough info; populate all 6 keywords and set domain (e.g. "Video Production", "AI Automation", "Web Development")"""
+type="question" → still gathering info (keywords and domain stay empty)
+type="ready" → enough context gathered — fill all 6 keywords and set domain (e.g. "Video Editing", "AI Automation", "Web Development")"""
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -107,12 +108,24 @@ def chat_message(req: ChatMessageRequest):
         }
 
     # ── Step 2: Sonnet manages Q&A and generates keywords ────────────
-    # Build multi-turn history for Sonnet
+    # Build clean history for Sonnet — strip leading AI messages (greeting/casual)
+    # so Sonnet only sees the actual search conversation
+    raw_history = list(req.history or [])
+
+    # Drop everything before the first user message to avoid greeting/casual noise
+    while raw_history and raw_history[0].role != "user":
+        raw_history = raw_history[1:]
+
     history_msgs = []
-    for msg in (req.history or []):
+    for msg in raw_history:
         role = "user" if msg.role == "user" else "assistant"
         history_msgs.append({"role": role, "content": msg.text})
-    history_msgs.append({"role": "user", "content": message})
+    # If this is the very first search message and it's a single word,
+    # expand it slightly so Sonnet has something to work with
+    first_search_msg = message
+    if not raw_history and len(message.split()) <= 2:
+        first_search_msg = f"I'm looking for {message}"
+    history_msgs.append({"role": "user", "content": first_search_msg})
 
     # Anthropic requires strictly alternating roles — merge consecutive same-role msgs
     cleaned: list = []
@@ -129,9 +142,20 @@ def chat_message(req: ChatMessageRequest):
             system=SONNET_SYSTEM,
             messages=cleaned,
         )
-        result = _extract_json(resp.content[0].text.strip())
+        raw_text = resp.content[0].text.strip()
+        result = _extract_json(raw_text)
+
+        # If JSON extraction failed, Sonnet returned plain text — wrap it
+        if not result:
+            return {
+                "message": raw_text[:300] if raw_text else "Can you tell me more about what you need?",
+                "type": "question",
+                "keywords": [],
+                "domain": "",
+            }
+
         return {
-            "message": result.get("message", "What are you looking for?"),
+            "message": result.get("message", "Can you tell me more about what you need?"),
             "type": result.get("type", "question"),
             "keywords": result.get("keywords", []),
             "domain": result.get("domain", ""),
