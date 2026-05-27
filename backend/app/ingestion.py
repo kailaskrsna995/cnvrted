@@ -8,17 +8,23 @@ from typing import Optional, List
 
 KEYWORDS = {
     "AI Automation": [
-        "can anyone recommend AI automation",
-        "need help automating",
-        "who do you use for automation",
+        "can anyone recommend AI automation agency",
         "looking for automation consultant",
+        "need help automating our workflows",
+        "anyone used a good AI agency",
+    ],
+    "Paid Social": [
+        "can anyone recommend paid ads agency",
+        "who do you use for Facebook ads",
+        "looking for a good media buyer",
+        "need help with our paid social",
     ],
     "Marketing": [
         "can anyone recommend marketing agency",
-        "who do you use for paid ads",
-        "looking for a copywriter",
-        "need help with our marketing",
-    ]
+        "looking for a good growth agency",
+        "need help with our marketing strategy",
+        "who do you recommend for lead generation",
+    ],
 }
 
 # Reddit-native buying phrases — what Reddit users actually type when they want to pay someone
@@ -45,15 +51,15 @@ def generate_lead_id(url: str, text: str, author: str) -> str:
 
 def build_search_url(keyword: str) -> str:
     from urllib.parse import quote
-    # TODO: change past-week back to past-24h for production
-    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords={quote(keyword)}&origin=FACETED_SEARCH"
+    # past-month casts a wider net for rare buyer posts; tighten to past-week once volume is proven
+    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-month%22&keywords={quote(keyword)}&origin=FACETED_SEARCH&sortBy=%22date_posted%22"
 
 async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     # Step 1: start run
     run_resp = await client.post(
         f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
-        json={"urls": [build_search_url(keyword)], "limitPerSource": 20, "deepScrape": True, "rawData": False}
+        json={"urls": [build_search_url(keyword)], "limitPerSource": 30, "deepScrape": True, "rawData": False}
     )
     if run_resp.status_code not in (200, 201):
         print(f"[Apify] Failed to start run for '{keyword}': {run_resp.text[:200]}")
@@ -99,23 +105,28 @@ JOB_SEEKER_SIGNALS = [
 ]
 
 # Sellers promoting their own services — not buyers
+# IMPORTANT: Keep this list tight. False positives here silently kill real buyer posts.
+# "our agency" / "my agency" intentionally excluded — agency owners can be buyers.
+# "dm me" / "reach out" excluded — buyers use these too ("DM me your recommendations").
 SELLER_SIGNALS = [
-    "my agency", "our agency", "i built this", "i created this",
-    "we specialize in", "i offer", "dm me", "reach out to me",
+    "i built this", "i created this",
+    "we specialize in", "i offer",
     "check out my", "here's how i", "i helped a client",
     "book a call", "schedule a call", "free consultation", "link in bio",
     "i specialize in", "our team offers",
+    "my services", "we offer", "hire us",
+    "contact us today",
 ]
 
 # Job listings — companies hiring employees, not buying agency services
+# Keep this tight — false positives here silently discard real buyer posts
 JOB_LISTING_SIGNALS = [
     "we're hiring", "we are hiring", "now hiring", "#hiring",
-    "is hiring", "are hiring", "join our team", "job opening",
-    "open position", "open role", "apply now", "apply here",
+    "join our team", "job opening",
+    "open position", "apply now", "apply here",
     "send your cv", "send your resume", "send cv", "send resume",
-    "years of experience", "job description", "responsibilities:",
-    "requirements:", "salary:", "full-time", "part-time", "internship",
-    "work from home", "remote job", "hybrid role",
+    "job description", "responsibilities:", "salary:",
+    "internship",
 ]
 
 # Posts must contain at least one of these to be worth scoring
@@ -528,12 +539,25 @@ async def fetch_google_linkedin_posts(client: httpx.AsyncClient, keyword: str) -
         print(f"[Google] No SERPER_API_KEY — skipping")
         return []
 
-    query = f'site:linkedin.com/posts "{keyword}"'
+    # Don't exact-match the full keyword phrase — buyer posts rarely repeat it verbatim.
+    # Instead quote just the core 3-word buyer-intent opener and add domain words unquoted.
+    parts = keyword.split()
+    # Find the first buyer phrase (up to first 3-4 words) and keep the rest free
+    buyer_starters = ("can anyone", "looking for", "need help", "anyone used", "we need", "who do you", "looking to")
+    core_quoted = keyword
+    for starter in buyer_starters:
+        if keyword.lower().startswith(starter):
+            # Quote just the opener + 1 more word; rest unquoted
+            end = len(starter.split()) + 1
+            core_quoted = f'"{" ".join(parts[:end])}" {" ".join(parts[end:])}'
+            break
+    query = f'site:linkedin.com/posts {core_quoted}'
+    print(f"[Google] query: {query}")
     try:
         resp = await client.post(
             "https://google.serper.dev/search",
             headers={"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"},
-            json={"q": query, "num": 10, "hl": "en"},
+            json={"q": query, "num": 20, "hl": "en"},
             timeout=15,
         )
         if resp.status_code != 200:
