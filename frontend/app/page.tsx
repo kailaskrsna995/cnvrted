@@ -498,8 +498,8 @@ export default function Dashboard() {
             {/* Greeting */}
             <div className="text-center mb-7">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="font-mono-custom font-bold tracking-[0.3em] text-[13px] uppercase text-white">cnvrted</span>
-                <span className="font-mono-custom text-[9px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
+                <span className="font-mono-custom font-bold tracking-[0.3em] text-[16px] uppercase text-white">cnvrted</span>
+                <span className="font-mono-custom text-[10px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
               </div>
               <h2 className="font-canela text-[40px] font-light text-white leading-tight mb-2">
                 {getGreeting()}, {firstName}
