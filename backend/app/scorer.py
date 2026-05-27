@@ -189,25 +189,42 @@ def generate_outreach(post_text: str, service: str, icp: str) -> str:
 
 
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
+    """Two-tier scoring:
+    - Haiku scores everything (cheap)
+    - If score is borderline (40–70), Sonnet re-scores to confirm
+    """
     # Truncate to keep costs low — 2400 chars ≈ 600 tokens, enough for scoring
     post_text = post_text[:2400]
-    # Build system as content blocks — SYSTEM_PROMPT is cached, hint appended uncached
+
     system_blocks = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
     if category_hint:
         system_blocks.append({"type": "text", "text": f"\nFor this post, prefer category: \"{category_hint}\" if it fits."})
 
     tokens_in_before  = _session_input_tokens
     tokens_out_before = _session_output_tokens
-    raw = _call_llm(system_blocks, post_text, model="claude-sonnet-4-6")
+
+    # Pass 1 — Haiku (fast + cheap)
+    raw = _call_llm(system_blocks, post_text, model="claude-haiku-4-5-20251001")
+    if not raw:
+        print(f"[Scorer] Haiku failed for: {post_text[:60]}")
+        return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False, "tokens_used": 0}
+
+    result = json.loads(raw)
+    score = result.get("intent_score", 0)
+    print(f"[Scorer] Haiku score={score} text={post_text[:60]}")
+
+    # Pass 2 — Sonnet only for borderline posts (40–70)
+    if 40 <= score <= 70:
+        raw2 = _call_llm(system_blocks, post_text, model="claude-sonnet-4-6")
+        if raw2:
+            result2 = json.loads(raw2)
+            print(f"[Scorer] Sonnet re-score={result2.get('intent_score')} (was {score})")
+            result = result2
+
     tokens_used = (
         (_session_input_tokens  - tokens_in_before) +
         (_session_output_tokens - tokens_out_before)
     )
-    if not raw:
-        print(f"[Scorer] All retries failed for: {post_text[:60]}")
-        return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False, "tokens_used": 0}
-    print(f"[Scorer] raw={raw}")
-    result = json.loads(raw)
     result["tokens_used"] = tokens_used
     return result
 
