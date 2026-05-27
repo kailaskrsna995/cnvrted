@@ -406,6 +406,91 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     return normalised
 
 
+async def fetch_indiehackers_results(client: httpx.AsyncClient, keyword: str) -> list:
+    """Scrape IndieHackers Ask IH section for buyer-intent posts.
+    IH is Next.js — page data is embedded as __NEXT_DATA__ JSON, no Apify needed.
+    """
+    import re, json as _json
+    from urllib.parse import quote
+
+    # "Ask IH" is the best section — founders literally asking for tool/service recommendations
+    # Also try the search page for keyword-specific results
+    urls_to_try = [
+        f"https://www.indiehackers.com/ask?tab=recent",
+        f"https://www.indiehackers.com/search?query={quote(keyword)}",
+    ]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+
+    all_posts = []
+
+    for url in urls_to_try:
+        try:
+            resp = await client.get(url, headers=headers, follow_redirects=True, timeout=20)
+            if resp.status_code != 200:
+                print(f"[IH] {url} → status {resp.status_code}")
+                continue
+
+            html = resp.text
+
+            # Extract __NEXT_DATA__ JSON embedded by Next.js
+            match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.DOTALL)
+            if not match:
+                print(f"[IH] No __NEXT_DATA__ found at {url}")
+                # Fallback: try to extract post data from Open Graph / JSON-LD
+                continue
+
+            page_data = _json.loads(match.group(1))
+            # Navigate to posts — structure varies by page
+            posts_raw = (
+                page_data.get("props", {}).get("pageProps", {}).get("posts") or
+                page_data.get("props", {}).get("pageProps", {}).get("results") or
+                page_data.get("props", {}).get("pageProps", {}).get("data", {}).get("posts") or
+                []
+            )
+            print(f"[IH] {url} → {len(posts_raw)} raw posts")
+
+            for p in posts_raw:
+                title   = p.get("title", "") or p.get("headline", "")
+                body    = p.get("body", "") or p.get("content", "") or p.get("description", "")
+                text    = f"{title}\n{body}".strip() if body else title
+                if not text:
+                    continue
+
+                slug    = p.get("slug", "") or p.get("id", "")
+                post_url = f"https://www.indiehackers.com/post/{slug}" if slug else ""
+                author  = (
+                    p.get("userId") or
+                    (p.get("user") or {}).get("username") or
+                    (p.get("author") or {}).get("username") or
+                    "ih-user"
+                )
+                created = p.get("createdAt") or p.get("publishedAt") or p.get("updatedAt")
+
+                all_posts.append({
+                    "text": text,
+                    "author": {
+                        "firstName": author,
+                        "lastName": "",
+                        "occupation": "IndieHackers",
+                        "publicId": author,
+                    },
+                    "url": post_url,
+                    "postedAt": created,
+                    "_platform": "indiehackers",
+                })
+
+        except Exception as e:
+            print(f"[IH] Error fetching {url}: {e}")
+
+    print(f"[IH] '{keyword}' → {len(all_posts)} total posts")
+    return all_posts
+
+
 async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
     from datetime import datetime as _dt, timedelta as _td
     since_date = (_dt.utcnow() - _td(days=4)).strftime("%Y-%m-%d")
@@ -484,18 +569,24 @@ async def run_ingestion(
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
         twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
         reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in reddit_keyword_map]
-        all_results = await asyncio.gather(*linkedin_tasks, *twitter_tasks, *reddit_tasks, return_exceptions=True)
+        ih_tasks       = [fetch_indiehackers_results(client, kw) for _, kw in keyword_map]
+        all_results = await asyncio.gather(
+            *linkedin_tasks, *twitter_tasks, *reddit_tasks, *ih_tasks,
+            return_exceptions=True
+        )
 
-        n = len(keyword_map)
+        n  = len(keyword_map)
         nr = len(reddit_keyword_map)
-        linkedin_results = all_results[:n]
-        twitter_results  = all_results[n:2*n]
-        reddit_results   = all_results[2*n:2*n+nr]
+        linkedin_results    = all_results[:n]
+        twitter_results     = all_results[n:2*n]
+        reddit_results      = all_results[2*n:2*n+nr]
+        ih_results          = all_results[2*n+nr:2*n+nr+n]
 
         for platform_label, km, platform_results in [
-            ("LinkedIn", keyword_map, linkedin_results),
-            ("Twitter",  keyword_map, twitter_results),
-            ("Reddit",   reddit_keyword_map, reddit_results),
+            ("LinkedIn",      keyword_map,        linkedin_results),
+            ("Twitter",       keyword_map,        twitter_results),
+            ("Reddit",        reddit_keyword_map, reddit_results),
+            ("IndieHackers",  keyword_map,        ih_results),
         ]:
             for (category, keyword), posts in zip(km, platform_results):
                 if isinstance(posts, Exception):

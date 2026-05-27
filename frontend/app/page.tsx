@@ -462,7 +462,7 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
               rel="noopener noreferrer"
               className="font-mono-custom text-xs border border-black bg-black text-white px-4 py-2 hover:bg-gray-900 transition"
             >
-              {lead.platform === 'reddit' ? 'Open on Reddit ↗' : lead.platform === 'twitter' ? 'Open on X ↗' : 'Open on LinkedIn ↗'}
+              {lead.platform === 'reddit' ? 'Open on Reddit ↗' : lead.platform === 'twitter' ? 'Open on X ↗' : lead.platform === 'indiehackers' ? 'Open on IH ↗' : 'Open on LinkedIn ↗'}
             </a>
           ) : (
             <span className="font-mono-custom text-xs text-gray-300">No source URL</span>
@@ -615,7 +615,7 @@ function OnboardingScreen({ onComplete }: { onComplete: (userId: string, display
       {/* Bottom tagline */}
       <div className="relative z-10 px-10 py-7">
         <p className="font-mono-custom text-xs text-white/15 uppercase tracking-widest">
-          Intent signals from LinkedIn & X, scored by AI in real time · Est. 2026
+          Intent signals from LinkedIn, X, Reddit & IndieHackers · Scored by AI in real time · Est. 2026
         </p>
       </div>
     </div>
@@ -761,7 +761,7 @@ export default function Dashboard() {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0 })
+  const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0, indiehackers: 0 })
   const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('cnvrted_dark') === 'true')
 
   useEffect(() => {
@@ -914,17 +914,17 @@ export default function Dashboard() {
     if (uid) query = query.eq('user_id', uid)
     const { data } = await query
     const counts: Record<string, number> = {}
-    let urgent = 0, linkedin = 0, twitter = 0
-    let reddit = 0
+    let urgent = 0, linkedin = 0, twitter = 0, reddit = 0, indiehackers = 0
     data?.forEach(r => {
       counts[r.category] = (counts[r.category] || 0) + 1
       if (r.timeline === 'Urgent') urgent++
       if (r.platform === 'linkedin') linkedin++
       if (r.platform === 'twitter') twitter++
       if (r.platform === 'reddit') reddit++
+      if (r.platform === 'indiehackers') indiehackers++
     })
     setStats(counts)
-    setAllLeadStats({ total: data?.length || 0, qualified: data?.length || 0, urgent, linkedin, twitter, reddit })
+    setAllLeadStats({ total: data?.length || 0, qualified: data?.length || 0, urgent, linkedin, twitter, reddit, indiehackers })
   }
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -1195,6 +1195,7 @@ export default function Dashboard() {
                     { label: 'LinkedIn', count: allLeadStats.linkedin, color: 'bg-blue-500' },
                     { label: 'X / Twitter', count: allLeadStats.twitter, color: 'bg-black' },
                     { label: 'Reddit', count: allLeadStats.reddit, color: 'bg-orange-500' },
+                    { label: 'IndieHackers', count: allLeadStats.indiehackers, color: 'bg-indigo-500' },
                   ].filter(s => s.count > 0).map(s => (
                     <div key={s.label} className="flex items-center gap-3">
                       <div className="flex-1">
@@ -1394,6 +1395,14 @@ export default function Dashboard() {
                             <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
                               className="icon-platform w-6 h-6 rounded border flex items-center justify-center hover:opacity-80 transition">
                               <svg width="9" height="9" viewBox="0 0 24 24" fill="black"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.763l7.738-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                          )}
+                          {/* IndieHackers */}
+                          {lead.platform === 'indiehackers' && lead.source_url && (
+                            <a href={lead.source_url} target="_blank" rel="noopener noreferrer"
+                              className="w-6 h-6 rounded border border-indigo-100 bg-indigo-50 flex items-center justify-center hover:bg-indigo-100 transition"
+                              title="Open on IndieHackers">
+                              <span className="font-mono-custom text-[8px] font-bold text-indigo-600">IH</span>
                             </a>
                           )}
                           <button onClick={() => toggleSave(lead)}
