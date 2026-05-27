@@ -3,7 +3,7 @@ import hashlib
 import asyncio
 from app.config import APIFY_API_TOKEN
 from app.database import supabase
-from app.scorer import score_post
+from app.scorer import score_post, generate_outreach
 from typing import Optional, List
 
 KEYWORDS = {
@@ -130,7 +130,7 @@ def _has_buying_signal(text: str) -> bool:
     return any(sig in lower for sig in BUYING_SIGNALS)
 
 
-def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
+def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "") -> tuple:
     results = []
     total_scanned = 0
     for post in posts:
@@ -176,6 +176,9 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
             # Force category to match searched domain so leads stay in the right feed
             if category and category != "Custom":
                 scored["category"] = category
+
+            # Generate personalised outreach line
+            outreach_line = generate_outreach(text, user_service, user_icp)
 
             # Extract posted_at — Apify actor field name varies across platforms
             raw_date = (
@@ -268,6 +271,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str]) -> tuple:
                 "user_id": user_id,
                 "tokens_used": scored.get("tokens_used", 0),
                 "location": author_location,
+                "outreach_line": outreach_line,
             }
             supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()
             results.append(lead)
@@ -385,12 +389,27 @@ async def run_ingestion(
     domain: Optional[str] = None,
     user_id: Optional[str] = None,
 ):
+    # Fetch user context for outreach personalisation
+    user_service = ""
+    user_icp = ""
+    if user_id:
+        try:
+            result = supabase.table("users").select("service_offering, onboarding_data").eq("id", user_id).execute()
+            if result.data:
+                u = result.data[0]
+                od = u.get("onboarding_data") or {}
+                user_service = u.get("service_offering") or od.get("company_do", "")
+                user_icp = od.get("icp", "")
+        except Exception as e:
+            print(f"[Ingestion] Could not fetch user context: {e}")
+
     if custom_keywords:
         keyword_map = [(domain or "Custom", kw) for kw in custom_keywords]
     else:
         keyword_map = [(cat, kw) for cat, kws in KEYWORDS.items() for kw in kws]
 
     print(f"[Ingestion] Keywords to scan: {[kw for _, kw in keyword_map]}")
+    print(f"[Ingestion] User context — service='{user_service}' icp='{user_icp}'")
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
@@ -408,7 +427,7 @@ async def run_ingestion(
                 if isinstance(posts, Exception):
                     print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
                     continue
-                saved, scanned = _process_posts(posts, category, user_id)
+                saved, scanned = _process_posts(posts, category, user_id, user_service, user_icp)
                 results.extend(saved)
                 total_scanned += scanned
 

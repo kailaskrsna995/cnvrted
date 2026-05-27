@@ -96,6 +96,16 @@ Other fields:
 Return valid JSON only. No explanation. No extra text.
 {"category": "AI Automation", "intent_score": 85, "timeline": "Urgent", "qualified": true, "exact_need": "Needs an AI agency to automate 500+ daily customer support tickets.", "domain": "SaaS", "contact_email": "", "contact_phone": ""}"""
 
+OUTREACH_PROMPT = """You write one personalized cold outreach opening line for a B2B sales rep.
+
+Given what the rep sells, their target customer, and a prospect's post — write ONE sentence (max 18 words) that:
+- References something specific from their post
+- Connects naturally to what the rep offers
+- Sounds human, not salesy
+
+Return JSON only. No explanation.
+{"outreach_line": "..."}"""
+
 SEARCH_PROMPT = """You map a search query to LinkedIn search keywords that surface posts from BUSINESSES seeking to BUY or CONTRACT external services.
 
 Buyers post their PROBLEM or ask their network for recommendations. Search for pain points + recommendation requests.
@@ -159,7 +169,28 @@ def _call_llm(system, user_content: str, temperature: float = 0.1, max_tokens: i
 
 
 # ── Public functions ──────────────────────────────────────────────────────────
+def generate_outreach(post_text: str, service: str, icp: str) -> str:
+    """Generate a 1-line personalised outreach opener. ~60 output tokens per call."""
+    if not service:
+        return ""
+    user_content = f"Rep sells: {service}\nTarget customer: {icp or 'B2B companies'}\nProspect post: {post_text[:800]}"
+    raw = _call_llm(
+        [{"type": "text", "text": OUTREACH_PROMPT, "cache_control": {"type": "ephemeral"}}],
+        user_content,
+        temperature=0.7,
+        max_tokens=64,
+    )
+    if not raw:
+        return ""
+    try:
+        return json.loads(raw).get("outreach_line", "")
+    except Exception:
+        return ""
+
+
 def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
+    # Truncate to keep costs low — 2400 chars ≈ 600 tokens, enough for scoring
+    post_text = post_text[:2400]
     # Build system as content blocks — SYSTEM_PROMPT is cached, hint appended uncached
     system_blocks = [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
     if category_hint:

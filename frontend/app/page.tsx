@@ -26,6 +26,7 @@ type Lead = {
   platform?: string
   tokens_used?: number
   location?: string
+  outreach_line?: string
 }
 
 type ActiveSearch = { domain: string; keywords: string[] }
@@ -433,6 +434,20 @@ function PostPreviewModal({ lead, onClose }: { lead: Lead, onClose: () => void }
               <p className="font-canela text-base text-black">{lead.exact_need}</p>
             </div>
           )}
+          {lead.outreach_line && (
+            <div className="mb-4 bg-gray-50 border border-gray-100 rounded px-3 py-2.5">
+              <p className="font-mono-custom text-xs text-gray-400 uppercase tracking-widest mb-1.5">Your opening line</p>
+              <p className="font-canela text-sm text-black italic mb-2">&ldquo;{lead.outreach_line}&rdquo;</p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(lead.outreach_line!)
+                  setCopiedOutreach(prev => { const s = new Set(prev); s.add(lead.lead_id); setTimeout(() => setCopiedOutreach(p => { const n = new Set(p); n.delete(lead.lead_id); return n }), 2000); return s })
+                }}
+                className="font-mono-custom text-[10px] border border-black px-3 py-1 hover:bg-black hover:text-white transition">
+                {copiedOutreach.has(lead.lead_id) ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+          )}
           <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{lead.post_text}</p>
         </div>
 
@@ -735,6 +750,7 @@ export default function Dashboard() {
   const [previewLead, setPreviewLead] = useState<Lead | null>(null)
   const [revealedEmails, setRevealedEmails] = useState<Set<string>>(new Set())
   const [revealedPhones, setRevealedPhones] = useState<Set<string>>(new Set())
+  const [copiedOutreach, setCopiedOutreach] = useState<Set<string>>(new Set())
   const toggleEmail = (id: string) => setRevealedEmails(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   const togglePhone = (id: string) => setRevealedPhones(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -1332,6 +1348,19 @@ export default function Dashboard() {
                       </p>
                       {lead.exact_need && (
                         <p className="font-mono-custom text-[11px] text-gray-600 line-clamp-2 leading-relaxed mb-2">{lead.exact_need}</p>
+                      )}
+                      {lead.outreach_line && (
+                        <div className="mb-2 flex items-start gap-1.5 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded" onClick={e => e.stopPropagation()}>
+                          <p className="font-mono-custom text-[10px] text-gray-700 flex-1 leading-relaxed italic">&ldquo;{lead.outreach_line}&rdquo;</p>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(lead.outreach_line!)
+                              setCopiedOutreach(prev => { const s = new Set(prev); s.add(lead.lead_id); setTimeout(() => setCopiedOutreach(p => { const n = new Set(p); n.delete(lead.lead_id); return n }), 2000); return s })
+                            }}
+                            className="shrink-0 font-mono-custom text-[9px] text-gray-400 hover:text-black transition px-1">
+                            {copiedOutreach.has(lead.lead_id) ? '✓' : 'copy'}
+                          </button>
+                        </div>
                       )}
                       <div className="mt-1" onClick={e => e.stopPropagation()}>
                         {/* Icons row */}
