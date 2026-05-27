@@ -8,16 +8,16 @@ from typing import Optional, List
 
 KEYWORDS = {
     "AI Automation": [
-        "looking to hire AI developer",
-        "need someone to automate",
-        "anyone recommend automation agency",
-        "hire chatbot developer",
+        "can anyone recommend AI automation",
+        "need help automating",
+        "who do you use for automation",
+        "looking for automation consultant",
     ],
     "Marketing": [
-        "looking for marketing agency",
-        "need help with paid ads",
-        "anyone recommend a good copywriter",
-        "hire social media manager",
+        "can anyone recommend marketing agency",
+        "who do you use for paid ads",
+        "looking for a copywriter",
+        "need help with our marketing",
     ]
 }
 
@@ -197,8 +197,11 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
                 author_location = ""
 
             scored = score_post(text, category_hint=category)
+            score = scored.get("intent_score", 0)
+            if score == 0:
+                print(f"[Score=0] platform={post.get('_platform','li')} | {text[:120]}")
             if not scored.get("qualified"):
-                print(f"[Filter] Discarded — score={scored.get('intent_score')} text={text[:60]}")
+                print(f"[Filter] Discarded — score={score} | {text[:80]}")
                 continue
             if category and category != "Custom":
                 scored["category"] = category

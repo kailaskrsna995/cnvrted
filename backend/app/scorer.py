@@ -88,7 +88,7 @@ Bad: "Interested in AI automation."
 
 Other fields:
 - category: use hint if provided, else infer (e.g. "AI Automation", "Marketing", "Aerospace & Defense")
-- qualified: true only if intent_score >= 60
+- qualified: true only if intent_score >= 40
 - domain: author's industry (e.g. "SaaS", "E-commerce") or ""
 - contact_email: extract from post or ""
 - contact_phone: extract from post or ""
@@ -213,8 +213,8 @@ def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     score = result.get("intent_score", 0)
     print(f"[Scorer] Haiku score={score} text={post_text[:60]}")
 
-    # Pass 2 — Sonnet only for borderline posts (40–70)
-    if 40 <= score <= 70:
+    # Pass 2 — Sonnet only for borderline posts (30–60)
+    if 30 <= score <= 60:
         raw2 = _call_llm(system_blocks, post_text, model="claude-sonnet-4-6")
         if raw2:
             result2 = json.loads(raw2)
