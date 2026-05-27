@@ -54,7 +54,8 @@ export function ChatInterface({
   compact?: boolean
 }) {
   return (
-    <div className="flex flex-col h-full relative z-10 w-full max-w-4xl mx-auto px-5 md:px-8 py-6 md:py-8">
+    <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
+      <div className="w-full max-w-4xl mx-auto px-5 md:px-8 py-6 md:py-8 flex flex-col min-h-full">
 
       {/* Header (only when no messages and not compact) */}
       {!compact && (
@@ -76,7 +77,7 @@ export function ChatInterface({
       )}
 
       {/* Messages — single scroll container (stats pinned at top in compact mode) */}
-      <div className="flex-1 overflow-y-auto mb-5 custom-scrollbar flex flex-col gap-5">
+      <div className="flex-1 flex flex-col gap-5 mb-5">
 
         {/* ── Compact mode: greeting + stats + charts live inside the scroll ── */}
         {compact && stats && (
@@ -227,7 +228,7 @@ export function ChatInterface({
       </div>
 
       {/* Input */}
-      <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-3 shadow-2xl shrink-0">
+      <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-3 shadow-2xl sticky bottom-4 shrink-0">
         <form onSubmit={(e) => { e.preventDefault(); sendChat() }} className="flex flex-col">
           <input
             type="text"
@@ -344,6 +345,7 @@ export function ChatInterface({
           )}
         </AnimatePresence>
       )}
+      </div>
     </div>
   )
 }
