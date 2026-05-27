@@ -75,31 +75,22 @@ They are NOT descriptions of your agency. They capture the buyer's voice.
 The buyer is a founder, head of marketing, or CEO who needs to hire an agency like yours.
 They post: "Hey network — can anyone recommend a good [service] for [their situation]?"
 
-BUYER-INTENT OPENERS (use each once across your 6 keywords):
-"can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding"
+KEYWORD STRATEGY — generate 2 types, 3 of each:
 
-SPECIFICITY RULES:
-- Always include the specific service type AND "agency", "freelancer", or "service" — NEVER just the role alone
-  BAD: "we need a video editor" → matches employee job listings
-  GOOD: "we need a video editing agency" or "looking for a freelance video editor"
-- Always include the client context (who the buyer is, what they sell, their stage)
-- 5–9 words per keyword
-- Vary the openers — all 6 must be different
+TYPE 1 — SHORT (3-5 words, high match rate on LinkedIn search):
+These are fragments that appear inside real buyer posts. Short = broader match.
+Examples: "recommend video editing agency" / "need video agency" / "outsource video editing" / "looking for video agency" / "need help video content"
 
-EXAMPLES (social media content agency for startups):
+TYPE 2 — SPECIFIC (6-9 words, higher quality matches):
+Full buyer-intent sentences that mimic how a real founder would post.
+Openers: "can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding"
+Examples: "can anyone recommend a video editing agency for startups" / "looking for a good video production agency for our brand"
 
-BAD — these return thought leaders and agencies promoting themselves:
-✗ "looking for social media agencies"
-✗ "Instagram content marketing strategy"
-✗ "social media tips for startups"
-
-GOOD — these return startup founders actively asking for recommendations:
-✓ "can anyone recommend an Instagram content agency for early-stage startups"
-✓ "looking for a good social media agency for our SaaS brand"
-✓ "we need a content agency for our funded startup's Instagram"
-✓ "anyone used a good social media marketing agency for B2B startups"
-✓ "who do you recommend for Instagram content creation for tech companies"
-✓ "need help finding a social media agency for our startup launch"
+RULES FOR ALL KEYWORDS:
+- Always include "agency", "freelancer", or "service" — NEVER just the role alone ("video editor" alone matches job listings)
+- Short keywords: 3-5 words, no filler
+- Specific keywords: include client context (who they are, their stage)
+- All 6 must be different openers/structures
 
 ═══ CASUAL MESSAGES ═══
 
