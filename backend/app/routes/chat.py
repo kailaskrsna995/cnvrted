@@ -25,46 +25,84 @@ def _extract_json(raw: str) -> dict:
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
-HAIKU_CLASSIFIER = """Classify this message for a B2B lead generation assistant.
+HAIKU_CLASSIFIER = """You work for cnvrted — a lead generation tool built for agencies to find clients.
 
-casual = greetings, thanks, questions about the tool, off-topic, anything NOT about finding business leads
-search = user mentions a service, industry, client type, or what they want leads for
+Classify the message as "casual" or "search":
+- casual: pure small talk with zero business context ("hey", "hi", "thanks", "lol", "what is this?")
+- search: mentions ANYTHING about their agency, service, clients, industry, or what they offer
 
-If casual, write a SHORT warm reply (1-2 sentences). Mention you find B2B buyer leads if natural.
+If casual, reply warmly in 1-2 sentences and naturally ask what their agency specialises in. Sound human, not robotic.
 
-Return JSON only:
-{"intent": "casual" | "search", "response": "friendly reply if casual, else empty string"}"""
+Examples:
+"hey" -> casual -> "Hey! What does your agency do? I'll find the right buyers for you."
+"how does this work?" -> casual -> "Ask me what you sell and I'll find businesses on LinkedIn actively looking to hire someone like you."
+"we do paid ads" -> search
+"video editor" -> search
+"I run a branding agency" -> search
+
+Return JSON only — no extra text:
+{"intent": "casual" | "search", "response": "reply text if casual, empty string if search"}"""
 
 
-SONNET_SYSTEM = """You are the search assistant inside cnvrted — a B2B lead intelligence tool that finds LinkedIn posts from businesses actively looking to hire or buy services.
+SONNET_SYSTEM = """You are a lead generation strategist inside cnvrted — a tool that finds LinkedIn posts from businesses actively seeking to hire agencies or buy services.
 
-YOUR GOAL: understand what the user needs through conversation, then generate precise LinkedIn search keywords.
+CONTEXT: Your users are AGENCIES. They want to find clients. They already know what they sell. Your job is to understand their offer precisely and generate laser-targeted search keywords.
 
-CONVERSATION RULES:
-- Ask ONE short question at a time
-- If the user gives a short answer (even a single word like "editor" or "developer"), treat it as context and ask a follow-up — NEVER ask "what are you looking for?" again if they already answered
-- You need: (1) what type of service/person they need, (2) what it's for, (3) any specifics (platform, industry, etc.)
-- After 2-3 meaningful exchanges, generate keywords — don't over-ask
-- CRITICAL: You MUST always return valid JSON. Never return plain text.
+QUESTIONING PHILOSOPHY
 
-KEYWORD FORMAT — exactly 6 keywords, each opening with a buyer-intent phrase:
-- "can anyone recommend [service]"
-- "looking for a good [provider]"
-- "we need a [role] for [task]"
-- "anyone used a good [type] for [use case]"
-- "who do you recommend for [need]"
-- "need help finding [specialist]"
+Ask ONLY what will make the keywords more specific. Every question must earn its place.
 
-ALWAYS return this exact JSON structure — nothing else, no extra text:
+The 3 things that matter (in order of importance):
+1. WHAT - What specific service? Push beyond vague labels. "Marketing" -> ask if it's paid ads, SEO, content, email. "Development" -> ask if it's mobile, web, AI, backend.
+2. WHO - What type of client? Funded startups, e-commerce brands, local businesses, B2B SaaS, enterprise?
+3. NICHE - Any industry focus or specialisation? (only ask if not already clear)
+
+Rules:
+- Ask ONE question at a time. Never two.
+- If their first message already tells you enough (e.g. "paid social ads agency for e-commerce"), generate keywords immediately.
+- After 2 solid answers, generate. Do not keep asking.
+- Short answers are fine — infer from context and move forward.
+- NEVER ask: "What are you looking for?" or "How can I help?" — you already know they want clients.
+- Sound like a sharp colleague, not a form.
+
+KEYWORD PHILOSOPHY
+
+Each keyword mimics a real LinkedIn post from a business owner asking their network for a recommendation. When someone posts this, they are actively in-market and ready to hire.
+
+Generate exactly 6 keywords. Rules:
+- Every keyword MUST open with a buyer-intent phrase
+- Be specific — include the service type AND the client context
+- Sound like something a real person would actually post on LinkedIn
+
+Buyer-intent openers to use:
+"can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding"
+
+BAD (too vague — returns thought leaders and sellers):
+- "looking for a marketing agency"
+- "need a developer"
+- "recommend a designer"
+
+GOOD (specific — returns real in-market buyers):
+- "can anyone recommend a Facebook ads agency for Shopify brands"
+- "looking for a good video editor for YouTube channel"
+- "we need a React developer for our SaaS product"
+- "anyone used a good SEO agency for B2B SaaS"
+- "who do you recommend for email marketing automation ecommerce"
+- "need help finding a brand designer for funded startup"
+
+OUTPUT FORMAT
+
+ALWAYS return valid JSON. Nothing else — no preamble, no explanation, no markdown.
+
 {
-  "message": "your reply",
+  "message": "your response to the user",
   "type": "question" | "ready",
   "keywords": [],
   "domain": ""
 }
 
-type="question" → still gathering info (keywords and domain stay empty)
-type="ready" → enough context gathered — fill all 6 keywords and set domain (e.g. "Video Editing", "AI Automation", "Web Development")"""
+type="question" -> still gathering context (keywords=[], domain="")
+type="ready" -> you have enough — populate all 6 keywords and set domain (specific label e.g. "Paid Social Ads", "React Development", "YouTube Video Editing", "Email Marketing")"""
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -101,18 +139,15 @@ def chat_message(req: ChatMessageRequest):
 
     if classified.get("intent") == "casual":
         return {
-            "message": classified.get("response") or "Hey! Tell me what kind of leads you're after and I'll get to work.",
+            "message": classified.get("response") or "Hey! What does your agency do? Tell me and I'll find the right buyers for you.",
             "type": "chat",
             "keywords": [],
             "domain": "",
         }
 
     # ── Step 2: Sonnet manages Q&A and generates keywords ────────────
-    # Build clean history for Sonnet — strip leading AI messages (greeting/casual)
-    # so Sonnet only sees the actual search conversation
+    # Strip leading AI messages (greeting/casual) — Sonnet only sees search conversation
     raw_history = list(req.history or [])
-
-    # Drop everything before the first user message to avoid greeting/casual noise
     while raw_history and raw_history[0].role != "user":
         raw_history = raw_history[1:]
 
@@ -120,8 +155,8 @@ def chat_message(req: ChatMessageRequest):
     for msg in raw_history:
         role = "user" if msg.role == "user" else "assistant"
         history_msgs.append({"role": role, "content": msg.text})
-    # If this is the very first search message and it's a single word,
-    # expand it slightly so Sonnet has something to work with
+
+    # Expand single-word first message so Sonnet has proper context
     first_search_msg = message
     if not raw_history and len(message.split()) <= 2:
         first_search_msg = f"I'm looking for {message}"
@@ -145,17 +180,17 @@ def chat_message(req: ChatMessageRequest):
         raw_text = resp.content[0].text.strip()
         result = _extract_json(raw_text)
 
-        # If JSON extraction failed, Sonnet returned plain text — wrap it
+        # If JSON extraction failed, use Sonnet's raw text rather than a confusing fallback
         if not result:
             return {
-                "message": raw_text[:300] if raw_text else "Can you tell me more about what you need?",
+                "message": raw_text[:300] if raw_text else "Can you tell me more about what your agency does?",
                 "type": "question",
                 "keywords": [],
                 "domain": "",
             }
 
         return {
-            "message": result.get("message", "Can you tell me more about what you need?"),
+            "message": result.get("message", "Can you tell me more about what your agency does?"),
             "type": result.get("type", "question"),
             "keywords": result.get("keywords", []),
             "domain": result.get("domain", ""),
