@@ -129,17 +129,23 @@ def chat_message(req: ChatMessageRequest):
     try:
         clf = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=150,
+            max_tokens=200,
             system=HAIKU_CLASSIFIER,
             messages=[{"role": "user", "content": message}],
         )
-        classified = _extract_json(clf.content[0].text.strip())
-    except Exception:
+        raw_clf = clf.content[0].text.strip()
+        print(f"[Chat] Haiku raw: {raw_clf[:200]}")
+        classified = _extract_json(raw_clf)
+        print(f"[Chat] Haiku classified: {classified}")
+    except Exception as e:
+        print(f"[Chat] Haiku error: {e}")
         classified = {"intent": "search"}
 
     if classified.get("intent") == "casual":
+        reply = classified.get("response") or "Hey! What does your agency do? Tell me and I'll find the right buyers for you."
+        print(f"[Chat] Casual reply: {reply[:100]}")
         return {
-            "message": classified.get("response") or "Hey! What does your agency do? Tell me and I'll find the right buyers for you.",
+            "message": reply,
             "type": "chat",
             "keywords": [],
             "domain": "",
@@ -171,6 +177,7 @@ def chat_message(req: ChatMessageRequest):
             cleaned.append(dict(m))
 
     try:
+        print(f"[Chat] Sonnet messages ({len(cleaned)}): {[m['role'] for m in cleaned]}")
         resp = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=512,
@@ -178,19 +185,22 @@ def chat_message(req: ChatMessageRequest):
             messages=cleaned,
         )
         raw_text = resp.content[0].text.strip()
+        print(f"[Chat] Sonnet raw: {raw_text[:200]}")
         result = _extract_json(raw_text)
 
         # If JSON extraction failed, use Sonnet's raw text rather than a confusing fallback
         if not result:
+            fallback = raw_text[:300] if raw_text else "What does your agency specialise in? I'll find the right buyers for you."
             return {
-                "message": raw_text[:300] if raw_text else "Can you tell me more about what your agency does?",
+                "message": fallback,
                 "type": "question",
                 "keywords": [],
                 "domain": "",
             }
 
+        msg = result.get("message") or "What does your agency specialise in? I'll find the right buyers for you."
         return {
-            "message": result.get("message", "Can you tell me more about what your agency does?"),
+            "message": msg,
             "type": result.get("type", "question"),
             "keywords": result.get("keywords", []),
             "domain": result.get("domain", ""),

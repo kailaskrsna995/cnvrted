@@ -964,18 +964,21 @@ export default function Dashboard() {
           history: prevHistory.map(m => ({ role: m.role, text: m.text }))
         })
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const aiMsg: ChatMsg = {
         role: 'ai',
-        text: data.message,
+        text: data.message || "Hey! What does your agency do? I'll find the right buyers for you.",
         ...(data.type === 'ready' ? { scanParams: { domain: data.domain, keywords: data.keywords } } : {})
       }
       setChatMessages(prev => [...prev, aiMsg])
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
-    } catch {
+    } catch (err) {
+      console.error('[sendChat] error:', err)
       setChatMessages(prev => [...prev, { role: 'ai', text: 'Something went wrong. Try again.' }])
+    } finally {
+      setChatLoading(false)
     }
-    setChatLoading(false)
   }
 
   const startNewSearch = () => {
