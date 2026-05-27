@@ -340,6 +340,9 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
         "proxy": {"useApifyProxy": True, "apifyProxyGroups": ["RESIDENTIAL"]},
     }, "Reddit")
     print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
+    if raw_items:
+        print(f"[Reddit Debug] keys={list(raw_items[0].keys())}")
+        print(f"[Reddit Debug] sample={raw_items[0]}")
     normalised = []
     for item in raw_items:
         # Only process posts, skip comments/communities

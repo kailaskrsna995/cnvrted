@@ -761,7 +761,7 @@ export default function Dashboard() {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0 })
+  const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0 })
   const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('cnvrted_dark') === 'true')
 
   useEffect(() => {
@@ -915,14 +915,16 @@ export default function Dashboard() {
     const { data } = await query
     const counts: Record<string, number> = {}
     let urgent = 0, linkedin = 0, twitter = 0
+    let reddit = 0
     data?.forEach(r => {
       counts[r.category] = (counts[r.category] || 0) + 1
       if (r.timeline === 'Urgent') urgent++
       if (r.platform === 'linkedin') linkedin++
       if (r.platform === 'twitter') twitter++
+      if (r.platform === 'reddit') reddit++
     })
     setStats(counts)
-    setAllLeadStats({ total: data?.length || 0, qualified: data?.length || 0, urgent, linkedin, twitter })
+    setAllLeadStats({ total: data?.length || 0, qualified: data?.length || 0, urgent, linkedin, twitter, reddit })
   }
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -1192,7 +1194,8 @@ export default function Dashboard() {
                   {[
                     { label: 'LinkedIn', count: allLeadStats.linkedin, color: 'bg-blue-500' },
                     { label: 'X / Twitter', count: allLeadStats.twitter, color: 'bg-black' },
-                  ].map(s => (
+                    { label: 'Reddit', count: allLeadStats.reddit, color: 'bg-orange-500' },
+                  ].filter(s => s.count > 0).map(s => (
                     <div key={s.label} className="flex items-center gap-3">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
