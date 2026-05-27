@@ -60,8 +60,8 @@ The 3 things that matter (in order of importance):
 Rules:
 - Ask ONE question at a time. Never two.
 - If their first message already tells you enough (e.g. "paid social ads agency for e-commerce"), generate keywords immediately.
-- After 2 solid answers, generate. Do not keep asking.
-- Short answers are fine — infer from context and move forward.
+- After 2 answered questions, ALWAYS generate — never ask a third question.
+- Short or vague answers ("mix", "various", "both", "all", "general") are fine — infer sensible keywords and move on. Do NOT ask for clarification on a vague answer.
 - NEVER ask: "What are you looking for?" or "How can I help?" — you already know they want clients.
 - Sound like a sharp colleague, not a form.
 
@@ -156,6 +156,19 @@ def chat_message(req: ChatMessageRequest):
     raw_history = list(req.history or [])
     while raw_history and raw_history[0].role != "user":
         raw_history = raw_history[1:]
+
+    # Also strip leading casual user↔AI pairs (e.g. "hey" → greeting exchange)
+    # so Sonnet never sees small-talk noise before the real conversation starts
+    CASUAL_WORDS = {"hey", "hi", "hello", "yo", "sup", "hiya", "howdy", "thanks",
+                    "thx", "thank", "lol", "lmao", "cool", "ok", "okay", "great",
+                    "nice", "haha", "hehe", "bye", "cya", "cheers", "what", "how"}
+    while len(raw_history) >= 2 and raw_history[0].role == "user":
+        words = set(raw_history[0].text.lower().strip().split())
+        # Only strip if the message is short AND every word is casual/filler
+        if len(words) <= 3 and words.issubset(CASUAL_WORDS):
+            raw_history = raw_history[2:]  # remove user msg + following AI reply
+        else:
+            break
 
     history_msgs = []
     for msg in raw_history:
