@@ -569,24 +569,22 @@ async def run_ingestion(
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
         twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
         reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in reddit_keyword_map]
-        ih_tasks       = [fetch_indiehackers_results(client, kw) for _, kw in keyword_map]
+        # IH disabled — actor was broken, re-enable once a reliable scraper is found
         all_results = await asyncio.gather(
-            *linkedin_tasks, *twitter_tasks, *reddit_tasks, *ih_tasks,
+            *linkedin_tasks, *twitter_tasks, *reddit_tasks,
             return_exceptions=True
         )
 
         n  = len(keyword_map)
         nr = len(reddit_keyword_map)
-        linkedin_results    = all_results[:n]
-        twitter_results     = all_results[n:2*n]
-        reddit_results      = all_results[2*n:2*n+nr]
-        ih_results          = all_results[2*n+nr:2*n+nr+n]
+        linkedin_results = all_results[:n]
+        twitter_results  = all_results[n:2*n]
+        reddit_results   = all_results[2*n:2*n+nr]
 
         for platform_label, km, platform_results in [
-            ("LinkedIn",      keyword_map,        linkedin_results),
-            ("Twitter",       keyword_map,        twitter_results),
-            ("Reddit",        reddit_keyword_map, reddit_results),
-            ("IndieHackers",  keyword_map,        ih_results),
+            ("LinkedIn", keyword_map,        linkedin_results),
+            ("Twitter",  keyword_map,        twitter_results),
+            ("Reddit",   reddit_keyword_map, reddit_results),
         ]:
             for (category, keyword), posts in zip(km, platform_results):
                 if isinstance(posts, Exception):

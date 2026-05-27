@@ -1,10 +1,11 @@
-from fastapi import APIRouter, BackgroundTasks, Body
+from fastapi import APIRouter, BackgroundTasks, Body, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from app.ingestion import run_ingestion
+from app.ingestion import run_ingestion, fetch_apify_results, fetch_twitter_results, fetch_reddit_results
 from app.database import supabase
 from app.scorer import score_post
 import hashlib
+import httpx
 from datetime import datetime, timezone, timedelta
 import random
 
@@ -64,6 +65,43 @@ async def seed_mock_leads():
         supabase.table("leads").upsert(lead, on_conflict="lead_id").execute()
         inserted.append(lead)
     return {"seeded": len(inserted)}
+
+@router.get("/debug-scrape/")
+async def debug_scrape(
+    keyword: str = Query(default="can anyone recommend marketing agency"),
+    platform: str = Query(default="linkedin"),
+):
+    """Fetch raw posts from one platform/keyword — NO scoring, NO filtering.
+    Use this to see exactly what the scraper returns before any LLM touches it."""
+    async with httpx.AsyncClient(timeout=300) as client:
+        if platform == "linkedin":
+            posts = await fetch_apify_results(client, keyword)
+        elif platform == "twitter":
+            posts = await fetch_twitter_results(client, keyword)
+        elif platform == "reddit":
+            posts = await fetch_reddit_results(client, keyword)
+        else:
+            return {"error": f"Unknown platform: {platform}"}
+
+    # Return cleaned summary + full text so we can read what's coming through
+    return {
+        "keyword": keyword,
+        "platform": platform,
+        "count": len(posts),
+        "posts": [
+            {
+                "author": f"{p.get('author',{}).get('firstName','')} {p.get('author',{}).get('lastName','')}".strip(),
+                "occupation": p.get("author", {}).get("occupation", ""),
+                "platform": p.get("_platform", platform),
+                "url": p.get("url", ""),
+                "posted_at": p.get("postedAt", ""),
+                "text_length": len(p.get("text", "")),
+                "text": p.get("text", ""),   # full text — no truncation
+            }
+            for p in posts
+        ]
+    }
+
 
 async def _run_and_unlock(keywords, domain, user_id):
     global _scan_in_progress, _last_scan_stats
