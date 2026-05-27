@@ -12,6 +12,13 @@ import { OnboardingQuestionnaire } from '../components/OnboardingQuestionnaire'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 function extractFirstName(nameOrEmail: string): string {
   if (!nameOrEmail) return ''
   if (nameOrEmail.includes('@')) {
@@ -485,6 +492,20 @@ export default function Dashboard() {
 
           {/* Stats + charts (always visible, shrink-0 so they stay at top) */}
           <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5">
+            {/* Greeting */}
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <span className="font-bold tracking-[0.3em] text-sm uppercase text-white">cnvrted</span>
+                <span className="text-[9px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
+              </div>
+              <h2 className="text-3xl font-medium text-white mb-1.5 tracking-tight">
+                {getGreeting()}, {firstName}
+              </h2>
+              <p className="text-[11px] text-gray-500 uppercase tracking-[0.2em]">
+                Your AI sales rep that finds buyers before they find you
+              </p>
+            </div>
+
             {/* 4 stat cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               {[
