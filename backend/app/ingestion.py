@@ -337,7 +337,7 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
         "fastMode": True,
         "includeNSFW": False,
         "crawlCommentsPerPost": False,
-        "proxy": {"useApifyProxy": True},
+        "proxy": {"useApifyProxy": True, "apifyProxyGroups": ["RESIDENTIAL"]},
     }, "Reddit")
     print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
     normalised = []
