@@ -107,6 +107,17 @@ SELLER_SIGNALS = [
     "i specialize in", "our team offers",
 ]
 
+# Job listings — companies hiring employees, not buying agency services
+JOB_LISTING_SIGNALS = [
+    "we're hiring", "we are hiring", "now hiring", "#hiring",
+    "is hiring", "are hiring", "join our team", "job opening",
+    "open position", "open role", "apply now", "apply here",
+    "send your cv", "send your resume", "send cv", "send resume",
+    "years of experience", "job description", "responsibilities:",
+    "requirements:", "salary:", "full-time", "part-time", "internship",
+    "work from home", "remote job", "hybrid role",
+]
+
 # Posts must contain at least one of these to be worth scoring
 BUYING_SIGNALS = [
     "looking for", "need a", "need an", "we need", "searching for",
@@ -143,6 +154,9 @@ def _has_buying_signal(text: str) -> bool:
     if any(sig in lower for sig in JOB_SEEKER_SIGNALS):
         return False
     if any(sig in lower for sig in SELLER_SIGNALS):
+        return False
+    if any(sig in lower for sig in JOB_LISTING_SIGNALS):
+        print(f"[Filter] Job listing: {text[:80]}")
         return False
     return True
 

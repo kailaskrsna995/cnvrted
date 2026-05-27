@@ -79,7 +79,9 @@ BUYER-INTENT OPENERS (use each once across your 6 keywords):
 "can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding"
 
 SPECIFICITY RULES:
-- Always include the specific service type (not just "agency" or "marketing")
+- Always include the specific service type AND "agency", "freelancer", or "service" — NEVER just the role alone
+  BAD: "we need a video editor" → matches employee job listings
+  GOOD: "we need a video editing agency" or "looking for a freelance video editor"
 - Always include the client context (who the buyer is, what they sell, their stage)
 - 5–9 words per keyword
 - Vary the openers — all 6 must be different
