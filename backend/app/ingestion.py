@@ -518,6 +518,65 @@ async def fetch_indiehackers_results(client: httpx.AsyncClient, keyword: str) ->
     return all_posts
 
 
+async def fetch_google_linkedin_posts(client: httpx.AsyncClient, keyword: str) -> list:
+    """Use Google (via Serper) to find LinkedIn posts containing the exact keyword.
+    Google indexes public LinkedIn posts and ranks by content relevance — not engagement.
+    This surfaces low-engagement buyer recommendation posts that LinkedIn's own search buries.
+    """
+    from app.config import SERPER_API_KEY
+    if not SERPER_API_KEY:
+        print(f"[Google] No SERPER_API_KEY — skipping")
+        return []
+
+    query = f'site:linkedin.com/posts "{keyword}"'
+    try:
+        resp = await client.post(
+            "https://google.serper.dev/search",
+            headers={"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"},
+            json={"q": query, "num": 10, "hl": "en"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            print(f"[Google] Serper error {resp.status_code}: {resp.text[:200]}")
+            return []
+
+        data = resp.json()
+        results = data.get("organic", [])
+        print(f"[Google] '{keyword}' → {len(results)} results")
+
+        posts = []
+        for r in results:
+            url = r.get("link", "")
+            if "linkedin.com/posts" not in url and "linkedin.com/feed" not in url:
+                continue
+            # Snippet contains post preview text — enough to score
+            title   = r.get("title", "")
+            snippet = r.get("snippet", "")
+            text    = f"{title}\n{snippet}".strip()
+            if not text or len(text) < 40:
+                continue
+            # Extract author from title (LinkedIn title format: "Name on LinkedIn: ...")
+            author = title.split(" on LinkedIn")[0].strip() if " on LinkedIn" in title else "LinkedIn User"
+            posts.append({
+                "text": text,
+                "author": {
+                    "firstName": author,
+                    "lastName": "",
+                    "occupation": "",
+                    "publicId": "",
+                },
+                "url": url,
+                "postedAt": None,
+                "_platform": "linkedin",
+                "_source": "google",
+            })
+        return posts
+
+    except Exception as e:
+        print(f"[Google] Error for '{keyword}': {e}")
+        return []
+
+
 async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
     from datetime import datetime as _dt, timedelta as _td
     since_date = (_dt.utcnow() - _td(days=4)).strftime("%Y-%m-%d")
@@ -587,28 +646,31 @@ async def run_ingestion(
         if short_kw != kw:
             reddit_keyword_map.append((cat, short_kw))
 
-    print(f"[Ingestion] LinkedIn/Twitter keywords: {[kw for _, kw in keyword_map]}")
-    print(f"[Ingestion] Reddit keywords: {[kw for _, kw in reddit_keyword_map]}")
+    print(f"[Ingestion] Keywords: {[kw for _, kw in keyword_map]}")
     print(f"[Ingestion] User context — service='{user_service}' icp='{user_icp}'")
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        # Reddit disabled — buyer-intent LinkedIn keywords return noise on Reddit
-        # Twitter disabled — returns political news + random tweets
-        # IH disabled — actor was broken
+        google_tasks   = [fetch_google_linkedin_posts(client, kw) for _, kw in keyword_map]
+
         all_results = await asyncio.gather(
-            *linkedin_tasks,
+            *linkedin_tasks, *google_tasks,
             return_exceptions=True
         )
 
-        for (category, keyword), posts in zip(keyword_map, all_results):
-            if isinstance(posts, Exception):
-                print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
-                continue
-            saved, scanned = _process_posts(posts, category, user_id, user_service, user_icp)
-            results.extend(saved)
-            total_scanned += scanned
+        n = len(keyword_map)
+        linkedin_results = all_results[:n]
+        google_results   = all_results[n:]
+
+        for label, task_results in [("LinkedIn", linkedin_results), ("Google→LinkedIn", google_results)]:
+            for (category, keyword), posts in zip(keyword_map, task_results):
+                if isinstance(posts, Exception):
+                    print(f"[Error] {label} keyword='{keyword}': {posts}")
+                    continue
+                saved, scanned = _process_posts(posts, category, user_id, user_service, user_icp)
+                results.extend(saved)
+                total_scanned += scanned
 
     total_saved = len(results)
     print(f"[Ingestion] Done — scanned={total_scanned} saved={total_saved} rejected={total_scanned - total_saved}")
