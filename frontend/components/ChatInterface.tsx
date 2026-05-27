@@ -16,6 +16,20 @@ const SPARKLINES = [
   'M0 12 L12 8 L24 16 L36 10 L48 14 L60 8 L72 12 L84 6',
 ]
 
+export type ChatStats = {
+  total: number
+  qualified: number
+  urgent: number
+  saved: number
+  scanTotal?: number
+  scanRejected?: number
+  linkedin?: number
+  twitter?: number
+  reddit?: number
+  categoryStats?: Record<string, number>
+  greeting?: string
+}
+
 export function ChatInterface({
   chatMessages,
   chatLoading,
@@ -35,12 +49,12 @@ export function ChatInterface({
   setSearchQuery: (q: string) => void
   sendChat: () => void
   triggerIngest: (params: { domain: string; keywords: string[] }) => void
-  stats?: { total: number; qualified: number; urgent: number; saved: number }
+  stats?: ChatStats
   recentLeads?: Lead[]
   compact?: boolean
 }) {
   return (
-    <div className="flex flex-col h-full relative z-10 w-full max-w-4xl mx-auto px-5 md:px-10 py-8 md:py-12">
+    <div className="flex flex-col h-full relative z-10 w-full max-w-4xl mx-auto px-5 md:px-8 py-6 md:py-8">
 
       {/* Header (only when no messages and not compact) */}
       {!compact && (
@@ -61,8 +75,106 @@ export function ChatInterface({
         </AnimatePresence>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto mb-6 custom-scrollbar pr-2 flex flex-col gap-6" style={{ minHeight: chatMessages.length > 0 ? '400px' : 'auto' }}>
+      {/* Messages — single scroll container (stats pinned at top in compact mode) */}
+      <div className="flex-1 overflow-y-auto mb-5 custom-scrollbar flex flex-col gap-5">
+
+        {/* ── Compact mode: greeting + stats + charts live inside the scroll ── */}
+        {compact && stats && (
+          <div className="pb-6 border-b border-white/5 flex flex-col gap-5">
+
+            {/* Greeting */}
+            {stats.greeting && (
+              <div className="text-center pt-2 pb-4">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <span className="font-mono-custom font-bold tracking-[0.3em] text-[16px] uppercase text-white">cnvrted</span>
+                  <span className="font-mono-custom text-[10px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
+                </div>
+                <h2 className="font-canela text-[40px] font-light text-white leading-tight mb-2">
+                  {stats.greeting}
+                </h2>
+                <p className="font-mono-custom text-[10px] text-gray-500 uppercase tracking-[0.25em]">
+                  Your AI sales rep that finds buyers before they find you
+                </p>
+              </div>
+            )}
+
+            {/* 4 stat cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Total Leads',    value: stats.total,     sub: 'all time' },
+                { label: 'Qualified',      value: stats.qualified, sub: 'score ≥ 60' },
+                { label: 'Urgent',         value: stats.urgent,    sub: 'need reply now' },
+                { label: 'Posts Scanned',  value: stats.scanTotal ?? 0, sub: `${stats.scanRejected ?? 0} rejected` },
+              ].map(card => (
+                <div key={card.label} className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5 hover:border-white/10 transition">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1.5">{card.label}</p>
+                  <p className="text-2xl font-semibold text-white leading-none mb-1">{card.value}</p>
+                  <p className="text-[9px] text-gray-600">{card.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Leads by source + Top industries */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Source */}
+              <div className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5">
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-3">Leads by Source</p>
+                {stats.total > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {[
+                      { label: 'LinkedIn',   count: stats.linkedin ?? 0,  color: 'bg-blue-500' },
+                      { label: 'X / Twitter',count: stats.twitter  ?? 0,  color: 'bg-gray-400' },
+                      { label: 'Reddit',     count: stats.reddit   ?? 0,  color: 'bg-orange-500' },
+                    ].filter(s => s.count > 0).map(s => (
+                      <div key={s.label} className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-400 w-20 shrink-0">{s.label}</span>
+                        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div className={`h-full ${s.color} rounded-full`} style={{ width: `${Math.round((s.count / stats.total) * 100)}%` }} />
+                        </div>
+                        <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums">
+                          {Math.round((s.count / stats.total) * 100)}%
+                        </span>
+                      </div>
+                    ))}
+                    {(stats.linkedin ?? 0) === 0 && (stats.twitter ?? 0) === 0 && (stats.reddit ?? 0) === 0 && (
+                      <p className="text-[11px] text-gray-600">No source data yet</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-600">No data yet — run a scan first</p>
+                )}
+              </div>
+
+              {/* Industries */}
+              <div className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5">
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-3">Top Industries</p>
+                {stats.categoryStats && Object.keys(stats.categoryStats).filter(k => k && k !== 'None').length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {Object.entries(stats.categoryStats)
+                      .filter(([k]) => k && k !== 'None')
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 4)
+                      .map(([cat, count]) => (
+                        <div key={cat} className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-400 flex-1 truncate">{cat}</span>
+                          <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden shrink-0">
+                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.round((count / stats.total) * 100)}%` }} />
+                          </div>
+                          <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums shrink-0">
+                            {Math.round((count / stats.total) * 100)}%
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-600">No data yet — run a scan first</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Messages ── */}
         <AnimatePresence initial={false}>
           {chatMessages.map((msg, i) => (
             <motion.div
@@ -75,14 +187,11 @@ export function ChatInterface({
               <div className={`max-w-[85%] rounded-2xl p-5 ${msg.role === 'user' ? 'bg-indigo-600/20 border border-indigo-500/20 text-indigo-100' : 'bg-[#0a0a0f] border border-white/5 text-gray-300'}`}>
                 {msg.role === 'ai' ? (
                   <div className="prose prose-invert prose-sm max-w-none text-[14px]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.text}
-                    </ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
                   </div>
                 ) : (
                   <p className="text-[14px] leading-relaxed">{msg.text}</p>
                 )}
-
                 {msg.scanParams && msg.scanParams.keywords && msg.scanParams.keywords.length > 0 && (
                   <button
                     onClick={() => triggerIngest(msg.scanParams!)}
@@ -146,137 +255,95 @@ export function ChatInterface({
         </form>
       </div>
 
-      {/* Quick searches + insights (only when no messages) */}
-      <AnimatePresence>
-        {chatMessages.length === 0 && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
-            transition={{ duration: 0.3 }}
-            className="mt-8 flex flex-col gap-10"
-          >
-            {/* Try searching chips */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[13px] text-gray-400 font-medium">Try searching</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { icon: '▷', label: 'Video editors for startups' },
-                  { icon: '▦', label: 'SaaS companies hiring' },
-                  { icon: 'in', label: 'LinkedIn leads' },
-                  { icon: '📍', label: 'US based agencies' },
-                ].map(q => (
-                  <button
-                    key={q.label}
-                    type="button"
-                    onClick={() => setSearchQuery(q.label)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0a0a0f] border border-white/5 hover:bg-white/5 transition"
-                  >
-                    <span className="text-gray-500 text-[10px]">{q.icon}</span>
-                    <span className="text-[12px] text-gray-300">{q.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Insights at a glance */}
-            {stats && (
+      {/* Quick searches (non-compact mode, no messages) */}
+      {!compact && (
+        <AnimatePresence>
+          {chatMessages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              transition={{ duration: 0.3 }}
+              className="mt-8 flex flex-col gap-10"
+            >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[13px] text-white font-medium">Insights at a glance</span>
+                  <span className="text-[13px] text-gray-400 font-medium">Try searching</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="flex flex-wrap gap-2">
                   {[
-                    {
-                      label: 'New buyer signals',
-                      sub: 'today',
-                      value: stats.total,
-                      color: 'text-indigo-400',
-                      stroke: '#6366f1',
-                      sparkline: SPARKLINES[0],
-                    },
-                    {
-                      label: 'Qualified leads',
-                      sub: 'score ≥ 60',
-                      value: stats.qualified,
-                      color: 'text-emerald-400',
-                      stroke: '#34d399',
-                      sparkline: SPARKLINES[1],
-                    },
-                    {
-                      label: 'Urgent',
-                      sub: 'need attention',
-                      value: stats.urgent,
-                      color: 'text-amber-400',
-                      stroke: '#fbbf24',
-                      sparkline: SPARKLINES[2],
-                    },
-                    {
-                      label: 'Leads saved',
-                      sub: 'this week',
-                      value: stats.saved,
-                      color: 'text-violet-400',
-                      stroke: '#a78bfa',
-                      sparkline: SPARKLINES[3],
-                    },
-                  ].map((card) => (
-                    <div
-                      key={card.label}
-                      className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4 flex flex-col gap-2 hover:border-white/10 transition"
+                    { icon: '▷', label: 'Video editors for startups' },
+                    { icon: '▦', label: 'SaaS companies hiring' },
+                    { icon: 'in', label: 'LinkedIn leads' },
+                    { icon: '📍', label: 'US based agencies' },
+                  ].map(q => (
+                    <button
+                      key={q.label}
+                      type="button"
+                      onClick={() => setSearchQuery(q.label)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0a0a0f] border border-white/5 hover:bg-white/5 transition"
                     >
-                      <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-[10px]">{q.icon}</span>
+                      <span className="text-[12px] text-gray-300">{q.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sparkline insights (non-compact, no messages) */}
+              {stats && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[13px] text-white font-medium">Insights at a glance</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'New buyer signals', sub: 'today',        value: stats.total,     color: 'text-indigo-400', stroke: '#6366f1', sparkline: SPARKLINES[0] },
+                      { label: 'Qualified leads',   sub: 'score ≥ 60',  value: stats.qualified, color: 'text-emerald-400', stroke: '#34d399', sparkline: SPARKLINES[1] },
+                      { label: 'Urgent',            sub: 'need attention', value: stats.urgent,  color: 'text-amber-400',  stroke: '#fbbf24', sparkline: SPARKLINES[2] },
+                      { label: 'Leads saved',       sub: 'this week',   value: stats.saved,     color: 'text-violet-400', stroke: '#a78bfa', sparkline: SPARKLINES[3] },
+                    ].map(card => (
+                      <div key={card.label} className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4 flex flex-col gap-2 hover:border-white/10 transition">
                         <div>
                           <p className="text-[11px] text-gray-500 mb-0.5">{card.label}</p>
                           <p className={`text-3xl font-semibold ${card.color} leading-none`}>{card.value}</p>
                           <p className="text-[10px] text-gray-600 mt-1">{card.sub}</p>
                         </div>
+                        <svg width="100%" height="24" viewBox="0 0 84 24" fill="none" preserveAspectRatio="none">
+                          <path d={card.sparkline} stroke={card.stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+                        </svg>
                       </div>
-                      <svg width="100%" height="24" viewBox="0 0 84 24" fill="none" preserveAspectRatio="none">
-                        <path d={card.sparkline} stroke={card.stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
-                      </svg>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Recent activity */}
-            {recentLeads && recentLeads.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[13px] text-white font-medium">Recent activity</span>
-                  <span className="text-[11px] text-gray-500">View all →</span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {recentLeads.slice(0, 4).map((lead, i) => (
-                    <div key={lead.id || i} className="flex items-center gap-3 px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl hover:border-white/10 transition">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        lead.platform === 'reddit' ? 'bg-orange-500/10 text-orange-400' :
-                        lead.platform === 'twitter' ? 'bg-gray-700 text-gray-300' :
-                        'bg-indigo-500/10 text-indigo-400'
-                      }`}>
-                        {lead.platform === 'reddit' ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>
-                        ) : lead.platform === 'twitter' ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.763l7.738-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                        ) : (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                        )}
+              {/* Recent activity */}
+              {recentLeads && recentLeads.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[13px] text-white font-medium">Recent activity</span>
+                    <span className="text-[11px] text-gray-500">View all →</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {recentLeads.slice(0, 4).map((lead, i) => (
+                      <div key={lead.id || i} className="flex items-center gap-3 px-4 py-3 bg-[#0a0a0f] border border-white/5 rounded-xl hover:border-white/10 transition">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${lead.platform === 'reddit' ? 'bg-orange-500/10 text-orange-400' : lead.platform === 'twitter' ? 'bg-gray-700 text-gray-300' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                          <span className="text-[10px] font-bold">{lead.platform === 'reddit' ? 'R' : lead.platform === 'twitter' ? 'X' : 'in'}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] text-white truncate">{lead.author}</p>
+                          <p className="text-[11px] text-gray-500 truncate">{lead.exact_need || lead.post_text?.slice(0, 60) || 'New buyer signal'}</p>
+                        </div>
+                        <span className="text-[11px] text-gray-600 shrink-0">{formatRelativeTime(lead.ingested_at)}</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] text-white truncate">{lead.author}</p>
-                        <p className="text-[11px] text-gray-500 truncate">{lead.exact_need || lead.post_text?.slice(0, 60) || 'New buyer signal'}</p>
-                      </div>
-                      <span className="text-[11px] text-gray-600 shrink-0">{formatRelativeTime(lead.ingested_at)}</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   )
 }

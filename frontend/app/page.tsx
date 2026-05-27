@@ -490,125 +490,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Scrollable content: stats + charts + chat */}
+        {/* Chat — stats + greeting live inside its scroll, rerun/new below header */}
         <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* Stats + charts (always visible, shrink-0 so they stay at top) */}
-          <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5">
-            {/* Greeting */}
-            <div className="text-center mb-7">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="font-mono-custom font-bold tracking-[0.3em] text-[16px] uppercase text-white">cnvrted</span>
-                <span className="font-mono-custom text-[10px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
-              </div>
-              <h2 className="font-canela text-[40px] font-light text-white leading-tight mb-2">
-                {getGreeting()}, {firstName}
-              </h2>
-              <p className="font-mono-custom text-[10px] text-gray-500 uppercase tracking-[0.25em]">
-                Your AI sales rep that finds buyers before they find you
-              </p>
-            </div>
-
-            {/* 4 stat cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              {[
-                { label: 'Total Leads', value: allLeadStats.total, sub: 'all time' },
-                { label: 'Qualified', value: allLeadStats.qualified, sub: 'score ≥ 60' },
-                { label: 'Urgent', value: allLeadStats.urgent, sub: 'need reply now' },
-                { label: 'Posts Scanned', value: scanStats.total_scanned, sub: `${scanStats.total_rejected} rejected` },
-              ].map(card => (
-                <div key={card.label} className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5 hover:border-white/10 transition">
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1.5">{card.label}</p>
-                  <p className="text-2xl font-semibold text-white leading-none mb-1">{card.value}</p>
-                  <p className="text-[9px] text-gray-600">{card.sub}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Leads by source + top industries */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Leads by source */}
-              <div className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5">
-                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-3">Leads by Source</p>
-                {allLeadStats.total > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {[
-                      { label: 'LinkedIn', count: allLeadStats.linkedin, color: 'bg-blue-500' },
-                      { label: 'X / Twitter', count: allLeadStats.twitter, color: 'bg-gray-400' },
-                      { label: 'Reddit', count: allLeadStats.reddit, color: 'bg-orange-500' },
-                    ].filter(s => s.count > 0).map(s => (
-                      <div key={s.label} className="flex items-center gap-2">
-                        <span className="text-[11px] text-gray-400 w-20 shrink-0">{s.label}</span>
-                        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                          <div className={`h-full ${s.color} rounded-full`} style={{ width: `${Math.round((s.count / allLeadStats.total) * 100)}%` }} />
-                        </div>
-                        <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums">
-                          {Math.round((s.count / allLeadStats.total) * 100)}%
-                        </span>
-                      </div>
-                    ))}
-                    {allLeadStats.linkedin === 0 && allLeadStats.twitter === 0 && allLeadStats.reddit === 0 && (
-                      <p className="text-[11px] text-gray-600">No source data yet</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-gray-600">No data yet — run a scan first</p>
-                )}
-              </div>
-
-              {/* Top industries */}
-              <div className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5">
-                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-3">Top Industries</p>
-                {Object.keys(stats).filter(k => k && k !== 'None').length > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {Object.entries(stats)
-                      .filter(([k]) => k && k !== 'None')
-                      .sort(([, a], [, b]) => b - a)
-                      .slice(0, 4)
-                      .map(([cat, count]) => (
-                        <div key={cat} className="flex items-center gap-2">
-                          <span className="text-[11px] text-gray-400 flex-1 truncate">{cat}</span>
-                          <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden shrink-0">
-                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.round((count / allLeadStats.total) * 100)}%` }} />
-                          </div>
-                          <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums shrink-0">
-                            {Math.round((count / allLeadStats.total) * 100)}%
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-gray-600">No data yet — run a scan first</p>
-                )}
-              </div>
-            </div>
-
-            {/* Post-scan actions */}
-            {!scanning && lastScanParams && (
-              <div className="flex items-center gap-2 mt-3">
-                {scanStats.total_scanned > 0 && (
-                  <span className="text-[10px] text-emerald-500">
-                    ✓ {scanStats.total_saved} leads from {scanStats.total_scanned} posts
-                  </span>
-                )}
-                <button
-                  onClick={() => triggerIngest(lastScanParams!)}
-                  disabled={scanning || loading || cooldownRemaining > 0}
-                  className="text-[11px] text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40 ml-auto"
-                >
+          {/* Post-scan actions bar */}
+          {!scanning && lastScanParams && (
+            <div className="shrink-0 px-6 py-2 border-b border-white/5 flex items-center gap-3">
+              {scanStats.total_scanned > 0 && (
+                <span className="text-[10px] text-emerald-500">✓ {scanStats.total_saved} leads from {scanStats.total_scanned} posts</span>
+              )}
+              <div className="ml-auto flex items-center gap-3">
+                <button onClick={() => triggerIngest(lastScanParams!)} disabled={scanning || loading || cooldownRemaining > 0} className="text-[11px] text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40">
                   {cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : 'Rerun ↺'}
                 </button>
-                <button
-                  onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0 }) }}
-                  className="text-[11px] text-gray-500 hover:text-gray-300 transition"
-                >
+                <button onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0 }) }} className="text-[11px] text-gray-500 hover:text-gray-300 transition">
                   New search
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Chat area (compact — no big header, messages + input) */}
+          {/* Chat — greeting + stats + charts scroll together with messages */}
           <ChatInterface
             chatMessages={chatMessages}
             chatLoading={chatLoading}
@@ -618,6 +520,19 @@ export default function Dashboard() {
             sendChat={sendChat}
             triggerIngest={triggerIngest}
             compact={true}
+            stats={{
+              total: allLeadStats.total,
+              qualified: allLeadStats.qualified,
+              urgent: allLeadStats.urgent,
+              saved: savedLeadIds.size,
+              scanTotal: scanStats.total_scanned,
+              scanRejected: scanStats.total_rejected,
+              linkedin: allLeadStats.linkedin,
+              twitter: allLeadStats.twitter,
+              reddit: allLeadStats.reddit,
+              categoryStats: stats,
+              greeting: `${getGreeting()}, ${firstName}`,
+            }}
           />
         </div>
       </main>
