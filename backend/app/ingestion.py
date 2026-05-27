@@ -172,21 +172,13 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
             else:
                 author_location = ""
 
-            # TODO: re-enable scoring once scrapers are verified
-            # scored = score_post(text, category_hint=category)
-            # if not scored.get("qualified"): continue
-            scored = {
-                "category": category or "General",
-                "intent_score": 50,
-                "timeline": "Active",
-                "qualified": True,
-                "exact_need": "",
-                "domain": "",
-                "contact_email": "",
-                "contact_phone": "",
-                "tokens_used": 0,
-            }
-            outreach_line = ""
+            scored = score_post(text, category_hint=category)
+            if not scored.get("qualified"):
+                print(f"[Filter] Discarded — score={scored.get('intent_score')} text={text[:60]}")
+                continue
+            if category and category != "Custom":
+                scored["category"] = category
+            outreach_line = generate_outreach(text, user_service, user_icp)
 
             # Extract posted_at — Apify actor field name varies across platforms
             raw_date = (
@@ -353,12 +345,13 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
         text = f"{title}\n{body}".strip() if body else title
         if not text:
             continue
-        url = item.get("url", item.get("permalink", ""))
+        url = item.get("postUrl") or item.get("url") or item.get("permalink") or ""
         if url and not url.startswith("http"):
             url = f"https://reddit.com{url}"
-        author = item.get("author", item.get("username", "Reddit User"))
-        subreddit = item.get("communityName", item.get("subreddit", ""))
-        created = item.get("createdAt", item.get("created_utc"))
+        author = (item.get("authorName") or item.get("author") or item.get("username") or "u/unknown")
+        raw_sub = item.get("parsedCommunityName") or item.get("communityName") or item.get("subreddit") or ""
+        subreddit = f"r/{raw_sub}" if raw_sub and not raw_sub.startswith("r/") else raw_sub
+        created = item.get("createdAt") or item.get("created_utc")
         normalised.append({
             "text": text,
             "author": {
