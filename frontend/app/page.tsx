@@ -437,65 +437,142 @@ export default function Dashboard() {
         setCategory={setCategory}
         firstName={firstName}
         setProfileOpen={setProfileOpen}
+        stats={stats}
+        savedLeadIds={savedLeadIds}
       />
 
-      {/* ── Main (chat) ── */}
+      {/* ── Main ── */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
 
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#030308]/80 backdrop-blur-xl shrink-0">
-          <button
-            onClick={() => setMobileNavOpen(true)}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white transition"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-white font-bold tracking-[0.2em] text-xs uppercase">cnvrted</span>
-            <span className="text-[9px] text-white/50 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest">BETA</span>
-          </div>
-          <button
-            onClick={() => setMobileFeedOpen(true)}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white transition relative"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-            {leads.length > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full" />
+        {/* Header bar */}
+        <div className="shrink-0 px-6 py-3.5 border-b border-white/5 flex items-center justify-between bg-[#030308]/80 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMobileNavOpen(true)} className="lg:hidden w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white transition">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            </button>
+            <h1 className="text-[15px] font-semibold text-white tracking-tight">
+              {category === 'All' ? 'Overview' : category === 'Saved' ? 'Saved Leads' : category}
+            </h1>
+            {scanning && (
+              <div className="flex items-center gap-1.5 ml-2">
+                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
+                <span className="text-[11px] text-indigo-400 tracking-wide">Scanning…</span>
+              </div>
             )}
-          </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileFeedOpen(true)}
+              className="lg:hidden relative w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white transition"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+              {leads.length > 0 && <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-indigo-500 rounded-full" />}
+            </button>
+            <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 hover:opacity-80 transition">
+              <div className="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-semibold">
+                {firstName[0]?.toUpperCase() || 'U'}
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-[12px] font-medium text-white leading-tight">{firstName}</p>
+                <p className="text-[10px] text-gray-500 leading-tight">Early Access</p>
+              </div>
+            </button>
+          </div>
         </div>
 
-        {/* Scanning status bar */}
-        {(scanning || scanStats.total_scanned > 0) && (
-          <div className="shrink-0 px-5 py-2 border-b border-white/5 bg-[#030308]/60 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {scanning ? (
-                <>
-                  <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
-                  <span className="text-[11px] text-indigo-400 uppercase tracking-widest font-medium">
-                    Scanning — {scanStats.total_scanned} checked · {scanStats.total_saved} found
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-                  <span className="text-[11px] text-emerald-400 uppercase tracking-widest font-medium">
-                    Done — {scanStats.total_saved} leads found from {scanStats.total_scanned} posts
-                  </span>
-                </>
-              )}
+        {/* Scrollable content: stats + charts + chat */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Stats + charts (always visible, shrink-0 so they stay at top) */}
+          <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5">
+            {/* 4 stat cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              {[
+                { label: 'Total Leads', value: allLeadStats.total, sub: 'all time' },
+                { label: 'Qualified', value: allLeadStats.qualified, sub: 'score ≥ 60' },
+                { label: 'Urgent', value: allLeadStats.urgent, sub: 'need reply now' },
+                { label: 'Posts Scanned', value: scanStats.total_scanned, sub: `${scanStats.total_rejected} rejected` },
+              ].map(card => (
+                <div key={card.label} className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5 hover:border-white/10 transition">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1.5">{card.label}</p>
+                  <p className="text-2xl font-semibold text-white leading-none mb-1">{card.value}</p>
+                  <p className="text-[9px] text-gray-600">{card.sub}</p>
+                </div>
+              ))}
             </div>
+
+            {/* Leads by source + top industries */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Leads by source */}
+              <div className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5">
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-3">Leads by Source</p>
+                {allLeadStats.total > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {[
+                      { label: 'LinkedIn', count: allLeadStats.linkedin, color: 'bg-blue-500' },
+                      { label: 'X / Twitter', count: allLeadStats.twitter, color: 'bg-gray-400' },
+                      { label: 'Reddit', count: allLeadStats.reddit, color: 'bg-orange-500' },
+                    ].filter(s => s.count > 0).map(s => (
+                      <div key={s.label} className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-400 w-20 shrink-0">{s.label}</span>
+                        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div className={`h-full ${s.color} rounded-full`} style={{ width: `${Math.round((s.count / allLeadStats.total) * 100)}%` }} />
+                        </div>
+                        <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums">
+                          {Math.round((s.count / allLeadStats.total) * 100)}%
+                        </span>
+                      </div>
+                    ))}
+                    {allLeadStats.linkedin === 0 && allLeadStats.twitter === 0 && allLeadStats.reddit === 0 && (
+                      <p className="text-[11px] text-gray-600">No source data yet</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-600">No data yet — run a scan first</p>
+                )}
+              </div>
+
+              {/* Top industries */}
+              <div className="bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5">
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-3">Top Industries</p>
+                {Object.keys(stats).filter(k => k && k !== 'None').length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {Object.entries(stats)
+                      .filter(([k]) => k && k !== 'None')
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 4)
+                      .map(([cat, count]) => (
+                        <div key={cat} className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-400 flex-1 truncate">{cat}</span>
+                          <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden shrink-0">
+                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.round((count / allLeadStats.total) * 100)}%` }} />
+                          </div>
+                          <span className="text-[10px] text-gray-500 w-8 text-right tabular-nums shrink-0">
+                            {Math.round((count / allLeadStats.total) * 100)}%
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-600">No data yet — run a scan first</p>
+                )}
+              </div>
+            </div>
+
+            {/* Post-scan actions */}
             {!scanning && lastScanParams && (
-              <div className="flex items-center gap-2">
-                {cooldownRemaining > 0 && (
-                  <span className="text-[11px] text-gray-500">⏱ {formatCountdown(cooldownRemaining)}</span>
+              <div className="flex items-center gap-2 mt-3">
+                {scanStats.total_scanned > 0 && (
+                  <span className="text-[10px] text-emerald-500">
+                    ✓ {scanStats.total_saved} leads from {scanStats.total_scanned} posts
+                  </span>
                 )}
                 <button
                   onClick={() => triggerIngest(lastScanParams!)}
                   disabled={scanning || loading || cooldownRemaining > 0}
-                  className="text-[11px] text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40"
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40 ml-auto"
                 >
-                  Rerun ↺
+                  {cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : 'Rerun ↺'}
                 </button>
                 <button
                   onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0 }) }}
@@ -506,25 +583,19 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-        )}
 
-        {/* Chat */}
-        <ChatInterface
-          chatMessages={chatMessages}
-          chatLoading={chatLoading}
-          chatEndRef={chatEndRef}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          sendChat={sendChat}
-          triggerIngest={triggerIngest}
-          stats={{
-            total: allLeadStats.total,
-            qualified: allLeadStats.qualified,
-            urgent: allLeadStats.urgent,
-            saved: savedLeadIds.size,
-          }}
-          recentLeads={leads.slice(0, 4)}
-        />
+          {/* Chat area (compact — no big header, messages + input) */}
+          <ChatInterface
+            chatMessages={chatMessages}
+            chatLoading={chatLoading}
+            chatEndRef={chatEndRef}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            sendChat={sendChat}
+            triggerIngest={triggerIngest}
+            compact={true}
+          />
+        </div>
       </main>
 
       {/* ── Lead Feed ── */}

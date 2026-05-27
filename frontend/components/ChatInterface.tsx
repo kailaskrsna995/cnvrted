@@ -26,6 +26,7 @@ export function ChatInterface({
   triggerIngest,
   stats,
   recentLeads,
+  compact,
 }: {
   chatMessages: ChatMsg[]
   chatLoading: boolean
@@ -36,26 +37,29 @@ export function ChatInterface({
   triggerIngest: (params: { domain: string; keywords: string[] }) => void
   stats?: { total: number; qualified: number; urgent: number; saved: number }
   recentLeads?: Lead[]
+  compact?: boolean
 }) {
   return (
     <div className="flex flex-col h-full relative z-10 w-full max-w-4xl mx-auto px-5 md:px-10 py-8 md:py-12">
 
-      {/* Header (only when no messages) */}
-      <AnimatePresence>
-        {chatMessages.length === 0 && (
-          <motion.div
-            initial={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20, height: 0, marginBottom: 0, overflow: 'hidden' }}
-            transition={{ duration: 0.3 }}
-            className="mb-10 relative"
-          >
-            <h1 className="text-[40px] md:text-[44px] font-medium text-white mb-4 leading-tight tracking-tight">
-              What buyers are<br/>you looking for today?
-            </h1>
-            <p className="text-gray-400 text-[15px]">Your AI sales rep that finds buyers before they find you.</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Header (only when no messages and not compact) */}
+      {!compact && (
+        <AnimatePresence>
+          {chatMessages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20, height: 0, marginBottom: 0, overflow: 'hidden' }}
+              transition={{ duration: 0.3 }}
+              className="mb-10 relative"
+            >
+              <h1 className="text-[40px] md:text-[44px] font-medium text-white mb-4 leading-tight tracking-tight">
+                What buyers are<br/>you looking for today?
+              </h1>
+              <p className="text-gray-400 text-[15px]">Your AI sales rep that finds buyers before they find you.</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto mb-6 custom-scrollbar pr-2 flex flex-col gap-6" style={{ minHeight: chatMessages.length > 0 ? '400px' : 'auto' }}>
