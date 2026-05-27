@@ -172,16 +172,21 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
             else:
                 author_location = ""
 
-            scored = score_post(text, category_hint=category)
-            if not scored.get("qualified"):
-                print(f"[Filter] Discarded — score={scored.get('intent_score')} text={text[:60]}")
-                continue
-            # Force category to match searched domain so leads stay in the right feed
-            if category and category != "Custom":
-                scored["category"] = category
-
-            # Generate personalised outreach line
-            outreach_line = generate_outreach(text, user_service, user_icp)
+            # TODO: re-enable scoring once scrapers are verified
+            # scored = score_post(text, category_hint=category)
+            # if not scored.get("qualified"): continue
+            scored = {
+                "category": category or "General",
+                "intent_score": 50,
+                "timeline": "Active",
+                "qualified": True,
+                "exact_need": "",
+                "domain": "",
+                "contact_email": "",
+                "contact_phone": "",
+                "tokens_used": 0,
+            }
+            outreach_line = ""
 
             # Extract posted_at — Apify actor field name varies across platforms
             raw_date = (
@@ -321,38 +326,43 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
 
 
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
-    raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
-        "searches": [keyword],
-        "sort": "new",
-        "time": "week",
-        "maxItems": 25,
-        "maxComments": 0,
-        "proxy": {"useApifyProxy": True},
-    }, "Reddit")
-    print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
+    """Uses Reddit's free public JSON API — no Apify actor required."""
+    from urllib.parse import quote
+    url = f"https://www.reddit.com/search.json?q={quote(keyword)}&sort=new&t=week&limit=25&type=link"
+    try:
+        resp = await client.get(url, headers={"User-Agent": "cnvrted-leadbot/1.0"})
+    except Exception as e:
+        print(f"[Reddit] Request failed for '{keyword}': {e}")
+        return []
+    if resp.status_code != 200:
+        print(f"[Reddit] HTTP {resp.status_code} for '{keyword}'")
+        return []
+    children = resp.json().get("data", {}).get("children", [])
+    print(f"[Reddit] '{keyword}' returned {len(children)} posts")
     normalised = []
-    for item in raw_items:
-        # Skip comments, only process posts
-        if item.get("dataType") and item.get("dataType") != "post":
-            continue
-        title = item.get("title", "")
-        body = item.get("body", "")
+    for child in children:
+        post = child.get("data", {})
+        title = post.get("title", "")
+        body = post.get("selftext", "")
         text = f"{title}\n{body}".strip() if body else title
         if not text:
             continue
-        url = item.get("url", "")
-        username = item.get("username", "Reddit User")
-        community = item.get("communityName", item.get("parsedCommunityName", ""))
+        permalink = post.get("permalink", "")
+        if permalink and not permalink.startswith("http"):
+            permalink = f"https://reddit.com{permalink}"
+        author = post.get("author", "Reddit User")
+        subreddit = post.get("subreddit_name_prefixed", post.get("subreddit", ""))
+        created_utc = post.get("created_utc")  # Unix timestamp
         normalised.append({
             "text": text,
             "author": {
-                "firstName": username,
+                "firstName": author,
                 "lastName": "",
-                "occupation": community,
+                "occupation": subreddit,
                 "publicId": "",
             },
-            "url": url,
-            "postedAt": item.get("createdAt"),
+            "url": permalink,
+            "postedAt": created_utc,
             "_platform": "reddit",
         })
     return normalised
