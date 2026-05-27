@@ -100,6 +100,7 @@ export default function Dashboard() {
   // ── Auth & user ───────────────────────────────────────────────────────────
   const [userId, setUserId] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
   const [userPosition, setUserPosition] = useState('')
   const [ready, setReady] = useState(false)
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
@@ -133,7 +134,7 @@ export default function Dashboard() {
   const [mobileFeedOpen, setMobileFeedOpen] = useState(false)
   const [feedWidth, setFeedWidth] = useState(384)
 
-  const firstName = extractFirstName(userName)
+  const firstName = extractFirstName(userEmail || userName)
 
   // ── Resize handler ────────────────────────────────────────────────────────
   const handleResizeStart = () => {
@@ -160,9 +161,11 @@ export default function Dashboard() {
   useEffect(() => {
     const id = localStorage.getItem('cnvrted_user_id')
     const name = localStorage.getItem('cnvrted_user_name')
+    const email = localStorage.getItem('cnvrted_username') || ''
     if (id) {
       setUserId(id)
       if (name) setUserName(name)
+      if (email) setUserEmail(email)
       fetchUser(id)
       fetchSaved(id)
     }
@@ -242,7 +245,7 @@ export default function Dashboard() {
       setUserName(displayName)
       setUserPosition(data.profession || '')
       localStorage.setItem('cnvrted_user_name', displayName)
-      if (data.username) localStorage.setItem('cnvrted_username', data.username)
+      if (data.username) { localStorage.setItem('cnvrted_username', data.username); setUserEmail(data.username) }
       const hasPrefs = !!(data.service_offering?.trim())
       setPreferencesSet(hasPrefs)
       if (hasPrefs) {
