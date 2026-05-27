@@ -765,6 +765,8 @@ export default function Dashboard() {
   const [lastScanParams, setLastScanParams] = useState<{ domain: string; keywords: string[] } | null>(null)
   const [rightPanelWidth, setRightPanelWidth] = useState(384)
   const isResizing = useRef(false)
+  const [likedLeads, setLikedLeads] = useState<Set<string>>(new Set())
+  const [dislikedLeads, setDislikedLeads] = useState<Set<string>>(new Set())
   const chatEndRef = useRef<HTMLDivElement>(null)
   const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0, indiehackers: 0 })
   const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('cnvrted_dark') === 'true')
@@ -1449,6 +1451,17 @@ export default function Dashboard() {
                               <span className="font-mono-custom text-[8px] font-bold text-indigo-600">IH</span>
                             </a>
                           )}
+                          {/* Like / Dislike */}
+                          <button
+                            onClick={e => { e.stopPropagation(); setLikedLeads(prev => { const s = new Set(prev); s.has(lead.lead_id) ? s.delete(lead.lead_id) : (s.add(lead.lead_id), setDislikedLeads(p => { const n = new Set(p); n.delete(lead.lead_id); return n })); return s }) }}
+                            className={`w-6 h-6 rounded border flex items-center justify-center transition hover:scale-110 ${likedLeads.has(lead.lead_id) ? 'border-green-300 bg-green-50 text-green-600' : 'border-gray-100 text-gray-300 hover:text-green-500 hover:border-green-200'}`}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill={likedLeads.has(lead.lead_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); setDislikedLeads(prev => { const s = new Set(prev); s.has(lead.lead_id) ? s.delete(lead.lead_id) : (s.add(lead.lead_id), setLikedLeads(p => { const n = new Set(p); n.delete(lead.lead_id); return n })); return s }) }}
+                            className={`w-6 h-6 rounded border flex items-center justify-center transition hover:scale-110 ${dislikedLeads.has(lead.lead_id) ? 'border-red-300 bg-red-50 text-red-500' : 'border-gray-100 text-gray-300 hover:text-red-400 hover:border-red-200'}`}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill={dislikedLeads.has(lead.lead_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                          </button>
                           <button onClick={() => toggleSave(lead)}
                             className={`ml-auto text-base leading-none transition hover:scale-110 ${savedLeadIds.has(lead.lead_id) ? 'text-black' : 'text-gray-200 hover:text-gray-400'}`}>
                             {savedLeadIds.has(lead.lead_id) ? '♥' : '♡'}
