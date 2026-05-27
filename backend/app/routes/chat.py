@@ -23,92 +23,101 @@ def _extract_json(raw: str) -> dict:
         return {}
 
 
-# ── Prompts ───────────────────────────────────────────────────────────────────
+# ── Prompt ────────────────────────────────────────────────────────────────────
 
-HAIKU_CLASSIFIER = """You work for cnvrted — a lead generation tool built for agencies to find clients.
+SONNET_SYSTEM = """You are the AI inside cnvrted — a lead generation tool that finds LinkedIn posts from businesses actively seeking to hire agencies.
 
-Classify the message as "casual" or "search":
-- casual: pure small talk with zero business context ("hey", "hi", "thanks", "lol", "what is this?")
-- search: mentions ANYTHING about their agency, service, clients, industry, or what they offer
+Your users ARE agencies. They are NOT looking for agencies — they ARE agencies looking for clients.
 
-If casual, reply warmly in 1-2 sentences and naturally ask what their agency specialises in. Sound human, not robotic.
+═══ YOUR JOB ═══
 
-Examples:
-"hey" -> casual -> "Hey! What does your agency do? I'll find the right buyers for you."
-"how does this work?" -> casual -> "Ask me what you sell and I'll find businesses on LinkedIn actively looking to hire someone like you."
-"we do paid ads" -> search
-"video editor" -> search
-"I run a branding agency" -> search
+Understand their agency well enough to generate 6 LinkedIn search phrases that surface real in-market buyers right now.
 
-Return JSON only — no extra text:
-{"intent": "casual" | "search", "response": "reply text if casual, empty string if search"}"""
+═══ CONVERSATION FLOW ═══
 
+STEP 1 — PARSE what they told you first.
+Extract everything you can from their opening message:
+- Service: what specific thing they sell (e.g. Instagram content, Facebook ads, web dev, SEO)
+- Client: who they work with (e.g. e-commerce brands, SaaS startups, local businesses)
+- Niche: any industry (e.g. fintech, health, fashion — or general)
+- Stage: startup, SMB, funded, enterprise, mix
+- Problem: what pain they solve (e.g. low engagement, no online presence, poor ad ROI)
 
-HAIKU_QA_SYSTEM = """You work for cnvrted, a lead generation tool for agencies. Your job is to collect 5 pieces of information about their agency — then hand off to the keyword engine.
+STEP 2 — ASK only what you still need. Every question must be:
+- Specific to what they already told you (not generic "what do you do?")
+- One question at a time
+- Conversational, not clinical
 
-THE 5 QUESTIONS (ask in this exact order, one at a time):
-Q1 SERVICE    — What specific service does your agency offer?
-               If the answer is vague (e.g. "marketing", "development"), ask ONE follow-up: "Is that [option A], [option B], or something else?" Then accept whatever they say.
-Q2 CLIENT     — What kind of businesses do you typically work with? (e-commerce brands, SaaS companies, local businesses, B2B, etc.)
-Q3 STAGE      — What stage are your ideal clients at? (early-stage startups, funded startups, SMBs, mid-market, enterprise — or a mix)
-Q4 PROBLEM    — What's the main thing you help them fix? (e.g. low ad ROI, no content strategy, slow website, poor conversions)
-Q5 GEOGRAPHY  — Where are your clients based? (local, US only, UK, Europe, global — any is fine)
+Good dynamic questions (based on their answer):
+→ They said "social media" → "Which platforms — Instagram and TikTok, or LinkedIn too?"
+→ They said "startups" → "Are we talking bootstrapped founders or funded Series A+ companies?"
+→ They said "content" → "Is that written content, video, or graphic design?"
+→ They said "marketing" → "Paid ads, organic content, SEO, or something else?"
 
-RULES:
-- Read the conversation history carefully to know which questions have already been answered
-- Ask only the NEXT unanswered question — never repeat a question that was already answered
-- Accept ALL answers, including short or vague ones ("mix", "all", "startups", "global", "various") — NEVER ask for more detail on an answered question
-- Be warm and conversational — one sentence per question, no bullet lists
-- When the user's first message already answers Q1 (e.g. "we do paid ads for e-commerce"), count that as answered and ask Q2 next
-- After ALL 5 questions are answered, set type="ready"
+Bad questions to NEVER ask:
+✗ "What do you do?" (if they already told you)
+✗ "How can I help?" (you already know)
+✗ "What are you looking for?" (they want clients)
+✗ Any repeat of a question already answered
 
-Return ONLY valid JSON — no extra text, no markdown:
+STEP 3 — GENERATE after enough context. Rules:
+- If their first message gives you 3+ clear dimensions, generate immediately — no questions
+- Otherwise ask until you have: service type + client type + at least one more dimension
+- Maximum 4 questions total — never ask a 5th
+- Short/vague answers ("mix", "all", "various") → accept them, infer sensibly, move on
+- Before generating, confirm your understanding in one sentence: "Got it — [X] for [Y], focused on [Z]."
+
+═══ KEYWORD PHILOSOPHY ═══
+
+Keywords must read like a real post from a BUSINESS OWNER asking their network for a recommendation.
+They are NOT descriptions of your agency. They capture the buyer's voice.
+
+The buyer is a founder, head of marketing, or CEO who needs to hire an agency like yours.
+They post: "Hey network — can anyone recommend a good [service] for [their situation]?"
+
+BUYER-INTENT OPENERS (use each once across your 6 keywords):
+"can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding"
+
+SPECIFICITY RULES:
+- Always include the specific service type (not just "agency" or "marketing")
+- Always include the client context (who the buyer is, what they sell, their stage)
+- 5–9 words per keyword
+- Vary the openers — all 6 must be different
+
+EXAMPLES (social media content agency for startups):
+
+BAD — these return thought leaders and agencies promoting themselves:
+✗ "looking for social media agencies"
+✗ "Instagram content marketing strategy"
+✗ "social media tips for startups"
+
+GOOD — these return startup founders actively asking for recommendations:
+✓ "can anyone recommend an Instagram content agency for early-stage startups"
+✓ "looking for a good social media agency for our SaaS brand"
+✓ "we need a content agency for our funded startup's Instagram"
+✓ "anyone used a good social media marketing agency for B2B startups"
+✓ "who do you recommend for Instagram content creation for tech companies"
+✓ "need help finding a social media agency for our startup launch"
+
+═══ CASUAL MESSAGES ═══
+
+If the message is pure small talk ("hey", "hi", "thanks", "lol") — respond warmly in 1-2 sentences and ask what their agency does. No JSON needed... wait, still return JSON:
+type="chat", keywords=[], domain=""
+
+═══ OUTPUT FORMAT ═══
+
+ALWAYS return valid JSON only. No preamble. No markdown. No extra text.
+
 {
-  "type": "question" | "ready",
-  "message": "your next question or a short 'Got it!' + transition when ready",
-  "collected": {
-    "service": "",
-    "client_type": "",
-    "stage": "",
-    "problem": "",
-    "geography": ""
-  }
+  "message": "your response to the user",
+  "type": "chat" | "question" | "ready",
+  "keywords": [],
+  "domain": ""
 }
 
-When type="ready": fill every collected field with the user's answer (use "general" for anything not specified).
-When type="question": fill only the fields answered so far, leave the rest as empty strings."""
-
-
-SONNET_KEYWORDS_SYSTEM = """You generate laser-targeted LinkedIn buyer-intent search keywords for a lead generation tool.
-
-Given a complete agency profile, generate exactly 6 keyword phrases that mimic real LinkedIn posts from business owners actively seeking to hire an agency like this one.
-
-KEYWORD RULES:
-- Every keyword MUST start with one of these buyer-intent openers:
-  "can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding" / "looking to hire a"
-- Be specific — combine the service type + client context + pain signal where possible
-- Sound like something a real founder or marketing manager would post on LinkedIn
-- 5-9 words per keyword
-- Use all 6 openers (vary them — don't repeat the same opener twice)
-
-BAD (too vague — returns thought leaders and vendors):
-- "looking for a marketing agency"
-- "need a developer"
-
-GOOD (returns actual in-market buyers):
-- "can anyone recommend a Facebook ads agency for Shopify brands"
-- "looking for a good video editor for our YouTube channel"
-- "we need a React developer for our SaaS product"
-- "anyone used a good SEO agency for B2B SaaS companies"
-- "who do you recommend for email marketing automation for ecommerce"
-- "need help finding a brand designer who works with funded startups"
-
-Return ONLY valid JSON — no preamble, no markdown:
-{
-  "message": "short excited line — 'Here are your keywords! Ready to scan LinkedIn for buyers.'",
-  "domain": "concise service label (e.g. 'Paid Social Ads', 'Content Marketing', 'React Development', 'YouTube Video Editing')",
-  "keywords": ["phrase1", "phrase2", "phrase3", "phrase4", "phrase5", "phrase6"]
-}"""
+type="chat"     → casual/small talk reply (keywords=[], domain="")
+type="question" → asking for more info (keywords=[], domain="")
+type="ready"    → all 6 keywords generated, domain set (e.g. "Instagram Content Marketing", "Paid Social Ads", "SaaS SEO")"""
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -130,40 +139,37 @@ CASUAL_WORDS = {
     "hey", "hi", "hello", "yo", "sup", "hiya", "howdy",
     "thanks", "thx", "thank", "lol", "lmao", "cool",
     "ok", "okay", "great", "nice", "haha", "hehe",
-    "bye", "cya", "cheers", "what", "how",
+    "bye", "cya", "cheers",
 }
 
-def _clean_history(raw_history: list) -> list:
-    """Strip leading AI messages and leading casual exchanges."""
-    # Remove leading AI messages
-    while raw_history and raw_history[0].role != "user":
-        raw_history = raw_history[1:]
-    # Remove leading casual user↔AI pairs (e.g. "hey" / "hi there")
-    while len(raw_history) >= 2 and raw_history[0].role == "user":
-        words = set(raw_history[0].text.lower().strip().split())
+def _clean_history(raw: list) -> list:
+    """Remove leading AI messages and leading casual-only exchanges."""
+    while raw and raw[0].role != "user":
+        raw = raw[1:]
+    while len(raw) >= 2 and raw[0].role == "user":
+        words = set(raw[0].text.lower().strip().split())
         if len(words) <= 3 and words.issubset(CASUAL_WORDS):
-            raw_history = raw_history[2:]
+            raw = raw[2:]
         else:
             break
-    return raw_history
+    return raw
 
 
-def _to_anthropic_messages(history: list, current_message: str) -> list:
-    """Convert HistoryMsg list + current message to Anthropic API format with alternating roles."""
-    msgs = []
-    for msg in history:
-        role = "user" if msg.role == "user" else "assistant"
-        msgs.append({"role": role, "content": msg.text})
-    msgs.append({"role": "user", "content": current_message})
-
-    # Merge consecutive same-role messages (Anthropic requires strict alternation)
-    cleaned = []
+def _build_messages(history: list, current: str) -> list:
+    """Build strictly alternating Anthropic messages list."""
+    msgs = [
+        {"role": "user" if m.role == "user" else "assistant", "content": m.text}
+        for m in history
+    ]
+    msgs.append({"role": "user", "content": current})
+    # Merge consecutive same-role messages
+    merged = []
     for m in msgs:
-        if cleaned and cleaned[-1]["role"] == m["role"]:
-            cleaned[-1]["content"] += "\n" + m["content"]
+        if merged and merged[-1]["role"] == m["role"]:
+            merged[-1]["content"] += "\n" + m["content"]
         else:
-            cleaned.append(dict(m))
-    return cleaned
+            merged.append(dict(m))
+    return merged
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -173,90 +179,51 @@ def chat_message(req: ChatMessageRequest):
     client = _get_client()
     message = req.message.strip()
 
-    # ── Step 1: Haiku classifies intent (casual vs search) ───────────
-    try:
-        clf = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=200,
-            system=HAIKU_CLASSIFIER,
-            messages=[{"role": "user", "content": message}],
-        )
-        raw_clf = clf.content[0].text.strip()
-        print(f"[Chat] Classify raw: {raw_clf[:200]}")
-        classified = _extract_json(raw_clf)
-    except Exception as e:
-        print(f"[Chat] Classify error: {e}")
-        classified = {"intent": "search"}
+    history = _clean_history(list(req.history or []))
 
-    if classified.get("intent") == "casual":
-        reply = classified.get("response") or "Hey! What does your agency do? Tell me and I'll find the right buyers for you."
-        print(f"[Chat] Casual: {reply[:100]}")
-        return {"message": reply, "type": "chat", "keywords": [], "domain": ""}
-
-    # ── Step 2: Haiku runs the 5-question Q&A ────────────────────────
-    raw_history = _clean_history(list(req.history or []))
-
-    # Expand single-word first message so Haiku has context
+    # Expand single-word opener so Sonnet has context on first search message
     first_msg = message
-    if not raw_history and len(message.split()) <= 2:
+    if not history and len(message.split()) <= 2 and message.lower() not in CASUAL_WORDS:
         first_msg = f"My agency does {message}"
 
-    messages = _to_anthropic_messages(raw_history, first_msg)
+    messages = _build_messages(history, first_msg)
 
     try:
-        print(f"[Chat] Haiku QA turn — {len(messages)} msgs")
-        qa = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=400,
-            system=HAIKU_QA_SYSTEM,
+        print(f"[Chat] Sonnet — {len(messages)} msgs, last: '{message[:60]}'")
+        resp = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=600,
+            system=SONNET_SYSTEM,
             messages=messages,
         )
-        raw_qa = qa.content[0].text.strip()
-        print(f"[Chat] Haiku QA raw: {raw_qa[:300]}")
-        qa_result = _extract_json(raw_qa)
-    except Exception as e:
-        print(f"[Chat] Haiku QA error: {e}")
-        return {"message": "What does your agency specialise in?", "type": "question", "keywords": [], "domain": ""}
+        raw = resp.content[0].text.strip()
+        print(f"[Chat] Sonnet raw: {raw[:300]}")
+        result = _extract_json(raw)
 
-    if not qa_result:
-        return {"message": "What does your agency specialise in?", "type": "question", "keywords": [], "domain": ""}
+        if not result:
+            # Non-JSON response — use raw text as the message
+            return {
+                "message": raw[:400] if raw else "What does your agency specialise in?",
+                "type": "question",
+                "keywords": [],
+                "domain": "",
+            }
 
-    # ── Step 3: If Haiku has all 5 answers, Sonnet generates keywords ─
-    if qa_result.get("type") == "ready":
-        collected = qa_result.get("collected", {})
-        context_block = (
-            f"Service: {collected.get('service', 'general')}\n"
-            f"Client type: {collected.get('client_type', 'general')}\n"
-            f"Stage/size: {collected.get('stage', 'general')}\n"
-            f"Core problem they solve: {collected.get('problem', 'general')}\n"
-            f"Geography: {collected.get('geography', 'global')}"
-        )
-        print(f"[Chat] Sonnet context:\n{context_block}")
-        try:
-            kw_resp = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=512,
-                system=SONNET_KEYWORDS_SYSTEM,
-                messages=[{"role": "user", "content": context_block}],
-            )
-            raw_kw = kw_resp.content[0].text.strip()
-            print(f"[Chat] Sonnet keywords raw: {raw_kw[:300]}")
-            kw_result = _extract_json(raw_kw)
-            if kw_result and kw_result.get("keywords"):
-                return {
-                    "message": kw_result.get("message", "Here are your keywords — ready to scan!"),
-                    "type": "ready",
-                    "keywords": kw_result.get("keywords", []),
-                    "domain": kw_result.get("domain", ""),
-                }
-        except Exception:
-            traceback.print_exc()
-        # Sonnet failed — ask user to try again
-        return {"message": "Almost there — something went wrong generating keywords. Try sending your last answer again.", "type": "question", "keywords": [], "domain": ""}
+        return {
+            "message": result.get("message") or "What does your agency specialise in?",
+            "type": result.get("type", "question"),
+            "keywords": result.get("keywords", []),
+            "domain": result.get("domain", ""),
+        }
 
-    # Still in Q&A phase — return Haiku's next question
-    msg = qa_result.get("message") or "Tell me more about your agency."
-    return {"message": msg, "type": "question", "keywords": [], "domain": ""}
+    except Exception:
+        traceback.print_exc()
+        return {
+            "message": "Something went wrong — try again.",
+            "type": "chat",
+            "keywords": [],
+            "domain": "",
+        }
 
 
 # Keep old route for any existing integrations
