@@ -326,13 +326,13 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
 
 
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
+    from urllib.parse import quote
+    search_url = f"https://www.reddit.com/search/?q={quote(keyword)}&sort=new&t=week&type=link"
     raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
-        "keywords": [keyword],
+        "startUrls": [{"url": search_url}],
         "searchPosts": True,
         "searchComments": False,
         "searchCommunities": False,
-        "searchSort": "new",
-        "searchTime": "week",
         "maxPostsCount": 25,
         "fastMode": True,
         "includeNSFW": False,
