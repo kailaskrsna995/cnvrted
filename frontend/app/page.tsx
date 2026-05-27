@@ -496,15 +496,15 @@ export default function Dashboard() {
           {/* Stats + charts (always visible, shrink-0 so they stay at top) */}
           <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5">
             {/* Greeting */}
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <span className="font-bold tracking-[0.3em] text-sm uppercase text-white">cnvrted</span>
-                <span className="text-[9px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
+            <div className="text-center mb-7">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="font-mono-custom font-bold tracking-[0.3em] text-[13px] uppercase text-white">cnvrted</span>
+                <span className="font-mono-custom text-[9px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
               </div>
-              <h2 className="text-3xl font-medium text-white mb-1.5 tracking-tight">
+              <h2 className="font-canela text-[40px] font-light text-white leading-tight mb-2">
                 {getGreeting()}, {firstName}
               </h2>
-              <p className="text-[11px] text-gray-500 uppercase tracking-[0.2em]">
+              <p className="font-mono-custom text-[10px] text-gray-500 uppercase tracking-[0.25em]">
                 Your AI sales rep that finds buyers before they find you
               </p>
             </div>
