@@ -22,7 +22,7 @@ KEYWORDS = {
 }
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
-REDDIT_ACTOR = "trudax~reddit-scraper"
+REDDIT_ACTOR = "harshaur~reddit-scraper"
 TWITTER_ACTOR = "apidojo~tweet-scraper"
 
 def generate_lead_id(url: str, text: str, author: str) -> str:
@@ -326,33 +326,36 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
 
 
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
-    """Uses Reddit's free public JSON API — no Apify actor required."""
-    from urllib.parse import quote
-    url = f"https://www.reddit.com/search.json?q={quote(keyword)}&sort=new&t=week&limit=25&type=link"
-    try:
-        resp = await client.get(url, headers={"User-Agent": "cnvrted-leadbot/1.0"})
-    except Exception as e:
-        print(f"[Reddit] Request failed for '{keyword}': {e}")
-        return []
-    if resp.status_code != 200:
-        print(f"[Reddit] HTTP {resp.status_code} for '{keyword}'")
-        return []
-    children = resp.json().get("data", {}).get("children", [])
-    print(f"[Reddit] '{keyword}' returned {len(children)} posts")
+    raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
+        "keywords": [keyword],
+        "searchPosts": True,
+        "searchComments": False,
+        "searchCommunities": False,
+        "searchSort": "new",
+        "searchTime": "week",
+        "maxPostsCount": 25,
+        "fastMode": True,
+        "includeNSFW": False,
+        "crawlCommentsPerPost": False,
+        "proxy": {"useApifyProxy": True},
+    }, "Reddit")
+    print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
     normalised = []
-    for child in children:
-        post = child.get("data", {})
-        title = post.get("title", "")
-        body = post.get("selftext", "")
+    for item in raw_items:
+        # Only process posts, skip comments/communities
+        if item.get("type") not in (None, "post", "link"):
+            continue
+        title = item.get("title", "")
+        body = item.get("body", item.get("selftext", ""))
         text = f"{title}\n{body}".strip() if body else title
         if not text:
             continue
-        permalink = post.get("permalink", "")
-        if permalink and not permalink.startswith("http"):
-            permalink = f"https://reddit.com{permalink}"
-        author = post.get("author", "Reddit User")
-        subreddit = post.get("subreddit_name_prefixed", post.get("subreddit", ""))
-        created_utc = post.get("created_utc")  # Unix timestamp
+        url = item.get("url", item.get("permalink", ""))
+        if url and not url.startswith("http"):
+            url = f"https://reddit.com{url}"
+        author = item.get("author", item.get("username", "Reddit User"))
+        subreddit = item.get("communityName", item.get("subreddit", ""))
+        created = item.get("createdAt", item.get("created_utc"))
         normalised.append({
             "text": text,
             "author": {
@@ -361,8 +364,8 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
                 "occupation": subreddit,
                 "publicId": "",
             },
-            "url": permalink,
-            "postedAt": created_utc,
+            "url": url,
+            "postedAt": created,
             "_platform": "reddit",
         })
     return normalised
