@@ -24,9 +24,11 @@ export function Sidebar({
         />
       )}
       <aside className={`fixed md:relative z-50 w-[240px] border-r border-white/5 flex flex-col h-screen shrink-0 bg-[#050508] transition-transform duration-300 ease-in-out ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        <div className="px-6 py-10 flex flex-col items-center justify-center gap-3 shrink-0">
-          <img src="/logo.png" alt="Logo" className="w-[84px] h-auto object-contain mix-blend-screen" />
-          <span className="font-bold tracking-[0.25em] text-xs uppercase text-white/90">cnvrted</span>
+        <div className="px-6 py-8 flex flex-col items-center justify-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="font-bold tracking-[0.3em] text-sm uppercase text-white">cnvrted</span>
+            <span className="text-[9px] text-white/40 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold leading-none">beta</span>
+          </div>
         </div>
 
         <nav className="flex-1 px-4 flex flex-col gap-1 overflow-hidden mt-4">
@@ -43,8 +45,8 @@ export function Sidebar({
         <div className="p-4 shrink-0">
           <div className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4 mb-4">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-amber-500">⚡</span>
-              <span className="text-[13px] font-medium text-white">Pro plan</span>
+              <span className="text-indigo-400">✦</span>
+              <span className="text-[13px] font-medium text-white">Early Access</span>
             </div>
             <p className="text-[10px] text-gray-500 mb-3">Resets in 14 days</p>
             <div className="w-full h-1 bg-gray-800 rounded-full mb-2 overflow-hidden">

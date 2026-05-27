@@ -517,6 +517,13 @@ export default function Dashboard() {
           setSearchQuery={setSearchQuery}
           sendChat={sendChat}
           triggerIngest={triggerIngest}
+          stats={{
+            total: allLeadStats.total,
+            qualified: allLeadStats.qualified,
+            urgent: allLeadStats.urgent,
+            saved: savedLeadIds.size,
+          }}
+          recentLeads={leads.slice(0, 4)}
         />
       </main>
 
