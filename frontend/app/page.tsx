@@ -909,7 +909,7 @@ export default function Dashboard() {
       setLeads(data || [])
       return
     }
-    let query = supabase.from('leads').select('*').eq('qualified', true).order('ingested_at', { ascending: false }).limit(50)
+    let query = supabase.from('leads').select('*').order('ingested_at', { ascending: false }).limit(200)
     if (uid) query = query.eq('user_id', uid)
     if (cat !== 'All') query = query.eq('category', cat)
     const { data } = await query
@@ -1388,9 +1388,13 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between gap-2 mb-0.5">
                         <p className="font-canela text-sm font-semibold text-black truncate">{lead.author}</p>
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="font-mono-custom text-[9px] text-gray-400">{lead.intent_score}</span>
-                          <span className={`font-mono-custom text-[9px] px-1.5 py-0.5 uppercase tracking-wide ${isHot ? 'bg-black text-white' : isWarm ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                            {isHot ? 'Hot' : isWarm ? 'Warm' : 'Cool'}
+                          {/* Platform source badge */}
+                          <span className={`font-mono-custom text-[9px] px-1.5 py-0.5 uppercase tracking-wide border ${
+                            lead.platform === 'reddit'  ? 'border-orange-300 text-orange-600 bg-orange-50' :
+                            lead.platform === 'twitter' ? 'border-gray-300 text-gray-600 bg-gray-50' :
+                            'border-blue-200 text-blue-600 bg-blue-50'
+                          }`}>
+                            {lead.platform === 'reddit' ? 'Reddit' : lead.platform === 'twitter' ? 'X' : 'LinkedIn'}
                           </span>
                         </div>
                       </div>

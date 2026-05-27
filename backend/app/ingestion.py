@@ -7,6 +7,14 @@ from app.scorer import score_post, generate_outreach
 from typing import Optional, List
 
 KEYWORDS = {
+    "AI Filmmaking": [
+        "can anyone recommend AI video production",
+        "looking for AI filmmaking studio",
+        "need help with AI generated video",
+        "anyone used a good AI video agency",
+        "we need AI video content for our brand",
+        "looking to outsource AI video production",
+    ],
     "AI Automation": [
         "can anyone recommend AI automation agency",
         "looking for automation consultant",
@@ -172,10 +180,12 @@ def _has_buying_signal(text: str) -> bool:
     return True
 
 
-def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "") -> tuple:
+def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "", skip_scoring: bool = False, max_posts: Optional[int] = None) -> tuple:
     results = []
     total_scanned = 0
     for post in posts:
+        if max_posts is not None and len(results) >= max_posts:
+            break
         total_scanned += 1
         try:
             text = post.get("text", "")
@@ -221,16 +231,30 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
             else:
                 author_location = ""
 
-            scored = score_post(text, category_hint=category)
-            score = scored.get("intent_score", 0)
-            if score == 0:
-                print(f"[Score=0] platform={post.get('_platform','li')} | {text[:120]}")
-            if not scored.get("qualified"):
-                print(f"[Filter] Discarded — score={score} | {text[:80]}")
-                continue
-            if category and category != "Custom":
-                scored["category"] = category
-            outreach_line = generate_outreach(text, user_service, user_icp)
+            if skip_scoring:
+                scored = {
+                    "category": category or "Uncategorised",
+                    "intent_score": 50,
+                    "timeline": "Active",
+                    "qualified": True,
+                    "exact_need": "",
+                    "domain": "",
+                    "contact_email": "",
+                    "contact_phone": "",
+                    "tokens_used": 0,
+                }
+                outreach_line = ""
+            else:
+                scored = score_post(text, category_hint=category)
+                score = scored.get("intent_score", 0)
+                if score == 0:
+                    print(f"[Score=0] platform={post.get('_platform','li')} | {text[:120]}")
+                if not scored.get("qualified"):
+                    print(f"[Filter] Discarded — score={score} | {text[:80]}")
+                    continue
+                if category and category != "Custom":
+                    scored["category"] = category
+                outreach_line = generate_outreach(text, user_service, user_icp)
 
             # Extract posted_at — Apify actor field name varies across platforms
             raw_date = (
@@ -659,16 +683,12 @@ async def run_ingestion(
     else:
         keyword_map = [(cat, kw) for cat, kws in KEYWORDS.items() for kw in kws]
 
-    # Build Reddit-specific queries: use shorter, native Reddit phrasing
-    # e.g. "looking to hire AI developer" stays as-is, but we also add
-    # the raw domain keyword so Reddit's search doesn't over-filter
-    reddit_keyword_map = []
-    for cat, kw in keyword_map:
-        reddit_keyword_map.append((cat, kw))
-        # Also add a stripped-down version (first 3 words) for broader Reddit matches
-        short_kw = " ".join(kw.split()[:3])
-        if short_kw != kw:
-            reddit_keyword_map.append((cat, short_kw))
+    # Use first 3 keywords only for Reddit/Twitter to avoid too many Apify runs
+    social_keyword_map = keyword_map[:3]
+
+    # Caps — Reddit and Twitter capped so they don't dominate the feed
+    REDDIT_CAP = 15
+    TWITTER_CAP = 15
 
     print(f"[Ingestion] Keywords: {[kw for _, kw in keyword_map]}")
     print(f"[Ingestion] User context — service='{user_service}' icp='{user_icp}'")
@@ -676,25 +696,64 @@ async def run_ingestion(
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        google_tasks   = [fetch_google_linkedin_posts(client, kw) for _, kw in keyword_map]
+        reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in social_keyword_map]
+        twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in social_keyword_map]
 
         all_results = await asyncio.gather(
-            *linkedin_tasks, *google_tasks,
+            *linkedin_tasks, *reddit_tasks, *twitter_tasks,
             return_exceptions=True
         )
 
-        n = len(keyword_map)
-        linkedin_results = all_results[:n]
-        google_results   = all_results[n:]
+        n_li = len(keyword_map)
+        n_so = len(social_keyword_map)
+        linkedin_results = all_results[:n_li]
+        reddit_results   = all_results[n_li:n_li + n_so]
+        twitter_results  = all_results[n_li + n_so:]
 
-        for label, task_results in [("LinkedIn", linkedin_results), ("Google→LinkedIn", google_results)]:
-            for (category, keyword), posts in zip(keyword_map, task_results):
-                if isinstance(posts, Exception):
-                    print(f"[Error] {label} keyword='{keyword}': {posts}")
-                    continue
-                saved, scanned = _process_posts(posts, category, user_id, user_service, user_icp)
-                results.extend(saved)
-                total_scanned += scanned
+        # LinkedIn — no cap, no LLM scoring
+        for (category, keyword), posts in zip(keyword_map, linkedin_results):
+            if isinstance(posts, Exception):
+                print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
+                continue
+            saved, scanned = _process_posts(posts, category, user_id, skip_scoring=True)
+            results.extend(saved)
+            total_scanned += scanned
+
+        # Reddit — capped, no LLM scoring
+        reddit_posts_all = []
+        for (category, keyword), posts in zip(social_keyword_map, reddit_results):
+            if isinstance(posts, Exception):
+                print(f"[Error] Reddit keyword='{keyword}': {posts}")
+                continue
+            for p in posts:
+                p["_category"] = category
+            reddit_posts_all.extend(posts)
+        if reddit_posts_all:
+            saved, scanned = _process_posts(
+                reddit_posts_all, domain or "Custom", user_id,
+                skip_scoring=True, max_posts=REDDIT_CAP
+            )
+            results.extend(saved)
+            total_scanned += scanned
+            print(f"[Reddit] saved={len(saved)} from {scanned} scanned (cap={REDDIT_CAP})")
+
+        # Twitter — capped, no LLM scoring
+        twitter_posts_all = []
+        for (category, keyword), posts in zip(social_keyword_map, twitter_results):
+            if isinstance(posts, Exception):
+                print(f"[Error] Twitter keyword='{keyword}': {posts}")
+                continue
+            for p in posts:
+                p["_category"] = category
+            twitter_posts_all.extend(posts)
+        if twitter_posts_all:
+            saved, scanned = _process_posts(
+                twitter_posts_all, domain or "Custom", user_id,
+                skip_scoring=True, max_posts=TWITTER_CAP
+            )
+            results.extend(saved)
+            total_scanned += scanned
+            print(f"[Twitter] saved={len(saved)} from {scanned} scanned (cap={TWITTER_CAP})")
 
     total_saved = len(results)
     print(f"[Ingestion] Done — scanned={total_scanned} saved={total_saved} rejected={total_scanned - total_saved}")
