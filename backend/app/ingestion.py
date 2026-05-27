@@ -22,7 +22,7 @@ KEYWORDS = {
 }
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
-REDDIT_ACTOR = "harshaur~reddit-scraper"
+REDDIT_ACTOR = "harshmaur~reddit-scraper"
 TWITTER_ACTOR = "apidojo~tweet-scraper"
 
 def generate_lead_id(url: str, text: str, author: str) -> str:
