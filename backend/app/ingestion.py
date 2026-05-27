@@ -8,18 +8,32 @@ from typing import Optional, List
 
 KEYWORDS = {
     "AI Automation": [
-        "recommend chatbot developer",
-        "automate our workflow help",
-        "looking for developer automate",
-        "anyone built automation for",
+        "looking to hire AI developer",
+        "need someone to automate",
+        "anyone recommend automation agency",
+        "hire chatbot developer",
     ],
     "Marketing": [
-        "recommend paid ads agency",
-        "our ads not performing",
-        "looking for Facebook ads help",
-        "need marketing agency recommend",
+        "looking for marketing agency",
+        "need help with paid ads",
+        "anyone recommend a good copywriter",
+        "hire social media manager",
     ]
 }
+
+# Reddit-native buying phrases — what Reddit users actually type when they want to pay someone
+REDDIT_BUYER_PHRASES = [
+    "anyone know a good",
+    "recommend a freelancer",
+    "looking to hire",
+    "need someone to build",
+    "hire a developer",
+    "need a designer",
+    "anyone used a good agency",
+    "looking for recommendations",
+    "will pay for",
+    "budget for",
+]
 
 APIFY_ACTOR = "supreme_coder~linkedin-post"
 REDDIT_ACTOR = "harshmaur~reddit-scraper"
@@ -148,6 +162,16 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
             if not _has_buying_signal(text):
                 print(f"[Filter] No buying signal: {text[:60]}")
                 continue
+            # For Reddit: drop posts from clearly off-topic subreddits
+            if post.get("_platform") == "reddit":
+                occupation = (post.get("author") or {}).get("occupation", "")
+                off_topic = {"gaming", "cars", "dating", "relationships", "medical",
+                             "personalfinance", "investing", "politics", "news",
+                             "funny", "pics", "videos", "movies", "music", "sports"}
+                sub = occupation.replace("r/", "").lower()
+                if sub and sub in off_topic:
+                    print(f"[Filter] Reddit off-topic subreddit r/{sub}: {text[:60]}")
+                    continue
             author_data = post.get("author", {})
             first = author_data.get("firstName", "")
             last = author_data.get("lastName", "")
@@ -317,9 +341,21 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
     return items_resp.json() if items_resp.status_code == 200 else []
 
 
+
+# Buyer-intent subreddits — people posting these are looking to pay for things
+BUYER_SUBREDDITS = (
+    "entrepreneur+smallbusiness+forhire+freelance+startups"
+    "+SaaS+digitalnomad+agency+businessowners+ecommerce"
+    "+marketing+webdev+growthhacking+hiring"
+)
+
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     from urllib.parse import quote
-    search_url = f"https://www.reddit.com/search/?q={quote(keyword)}&sort=new&t=week&type=link"
+    # Restrict to buyer-intent subreddits — global search returns r/gaming, r/dating, etc.
+    search_url = (
+        f"https://www.reddit.com/r/{BUYER_SUBREDDITS}/search/"
+        f"?q={quote(keyword)}&sort=new&t=week&restrict_sr=1&type=link"
+    )
     raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
         "startUrls": [{"url": search_url}],
         "searchPosts": True,
@@ -425,23 +461,40 @@ async def run_ingestion(
     else:
         keyword_map = [(cat, kw) for cat, kws in KEYWORDS.items() for kw in kws]
 
-    print(f"[Ingestion] Keywords to scan: {[kw for _, kw in keyword_map]}")
+    # Build Reddit-specific queries: use shorter, native Reddit phrasing
+    # e.g. "looking to hire AI developer" stays as-is, but we also add
+    # the raw domain keyword so Reddit's search doesn't over-filter
+    reddit_keyword_map = []
+    for cat, kw in keyword_map:
+        reddit_keyword_map.append((cat, kw))
+        # Also add a stripped-down version (first 3 words) for broader Reddit matches
+        short_kw = " ".join(kw.split()[:3])
+        if short_kw != kw:
+            reddit_keyword_map.append((cat, short_kw))
+
+    print(f"[Ingestion] LinkedIn/Twitter keywords: {[kw for _, kw in keyword_map]}")
+    print(f"[Ingestion] Reddit keywords: {[kw for _, kw in reddit_keyword_map]}")
     print(f"[Ingestion] User context — service='{user_service}' icp='{user_icp}'")
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
         twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in keyword_map]
-        reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in keyword_map]
+        reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in reddit_keyword_map]
         all_results = await asyncio.gather(*linkedin_tasks, *twitter_tasks, *reddit_tasks, return_exceptions=True)
 
         n = len(keyword_map)
+        nr = len(reddit_keyword_map)
         linkedin_results = all_results[:n]
         twitter_results  = all_results[n:2*n]
-        reddit_results   = all_results[2*n:]
+        reddit_results   = all_results[2*n:2*n+nr]
 
-        for platform_label, platform_results in [("LinkedIn", linkedin_results), ("Twitter", twitter_results), ("Reddit", reddit_results)]:
-            for (category, keyword), posts in zip(keyword_map, platform_results):
+        for platform_label, km, platform_results in [
+            ("LinkedIn", keyword_map, linkedin_results),
+            ("Twitter",  keyword_map, twitter_results),
+            ("Reddit",   reddit_keyword_map, reddit_results),
+        ]:
+            for (category, keyword), posts in zip(km, platform_results):
                 if isinstance(posts, Exception):
                     print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
                     continue
