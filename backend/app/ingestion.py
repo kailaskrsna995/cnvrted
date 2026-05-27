@@ -122,12 +122,15 @@ def _is_english(text: str) -> bool:
 
 
 def _has_buying_signal(text: str) -> bool:
+    """Reject obvious non-buyers. Keywords already target buyer posts so
+    we trust the LLM to do the final qualification — no mandatory buying
+    signal required here."""
     lower = text.lower()
     if any(sig in lower for sig in JOB_SEEKER_SIGNALS):
         return False
     if any(sig in lower for sig in SELLER_SIGNALS):
         return False
-    return any(sig in lower for sig in BUYING_SIGNALS)
+    return True
 
 
 def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "") -> tuple:
