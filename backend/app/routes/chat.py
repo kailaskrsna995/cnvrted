@@ -53,6 +53,7 @@ Good dynamic questions (based on their answer):
 → They said "startups" → "Are we talking bootstrapped founders or funded Series A+ companies?"
 → They said "content" → "Is that written content, video, or graphic design?"
 → They said "marketing" → "Paid ads, organic content, SEO, or something else?"
+→ They said "AI video" or "AI film" → "Are your clients brands wanting AI ads, or studios/creators wanting AI production tools?"
 
 Bad questions to NEVER ask:
 ✗ "What do you do?" (if they already told you)
