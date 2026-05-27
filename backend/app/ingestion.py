@@ -272,6 +272,17 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
                 if drop:
                     continue
 
+            # Drop LinkedIn posts older than 30 days
+            if post.get("_platform", "linkedin") == "linkedin" and posted_at:
+                try:
+                    from datetime import datetime as _dt3
+                    age_days = (_dt3.utcnow() - _dt3.fromisoformat(posted_at)).days
+                    if age_days > 30:
+                        print(f"[Filter] LinkedIn post too old ({age_days}d): {text[:60]}")
+                        continue
+                except Exception:
+                    pass
+
             lead_id = generate_lead_id(url, text, author)
             lead = {
                 "lead_id": lead_id,
@@ -569,30 +580,21 @@ async def run_ingestion(
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
         linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
-        reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in reddit_keyword_map]
-        # Twitter disabled — returns political news + random tweets, not buyer content
+        # Reddit disabled — buyer-intent LinkedIn keywords return noise on Reddit
+        # Twitter disabled — returns political news + random tweets
         # IH disabled — actor was broken
         all_results = await asyncio.gather(
-            *linkedin_tasks, *reddit_tasks,
+            *linkedin_tasks,
             return_exceptions=True
         )
 
-        n  = len(keyword_map)
-        nr = len(reddit_keyword_map)
-        linkedin_results = all_results[:n]
-        reddit_results   = all_results[n:n+nr]
-
-        for platform_label, km, platform_results in [
-            ("LinkedIn", keyword_map,        linkedin_results),
-            ("Reddit",   reddit_keyword_map, reddit_results),
-        ]:
-            for (category, keyword), posts in zip(km, platform_results):
-                if isinstance(posts, Exception):
-                    print(f"[Error] {platform_label} keyword='{keyword}': {posts}")
-                    continue
-                saved, scanned = _process_posts(posts, category, user_id, user_service, user_icp)
-                results.extend(saved)
-                total_scanned += scanned
+        for (category, keyword), posts in zip(keyword_map, all_results):
+            if isinstance(posts, Exception):
+                print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
+                continue
+            saved, scanned = _process_posts(posts, category, user_id, user_service, user_icp)
+            results.extend(saved)
+            total_scanned += scanned
 
     total_saved = len(results)
     print(f"[Ingestion] Done — scanned={total_scanned} saved={total_saved} rejected={total_scanned - total_saved}")
