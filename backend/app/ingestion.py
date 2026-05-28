@@ -124,6 +124,17 @@ SELLER_SIGNALS = [
     "i specialize in", "our team offers",
     "my services", "we offer", "hire us",
     "contact us today",
+    # Seller launch / self-promotion patterns
+    "officially open", "now open for", "open for clients", "open for projects",
+    "available for hire", "available for projects", "available for freelance",
+    "dm for paid", "dm for orders", "dms open for",
+    "portfolio:", "my portfolio", "my rates", "pricing:", "starting at $", "starting from $",
+    "freelance services", "editing services",
+    "excited to launch", "excited to announce", "just launched my",
+    "service promo", "promo post",
+    "i do this", "i do that", "i can help you",
+    "i'm a video editor", "i am a video editor",
+    "i'm an editor", "i am an editor",
 ]
 
 # Job listings — companies hiring employees, not buying agency services
@@ -137,24 +148,39 @@ JOB_LISTING_SIGNALS = [
     "internship",
 ]
 
-# Posts must contain at least one of these to be worth scoring
-BUYING_SIGNALS = [
-    "looking for", "need a", "need an", "we need", "searching for",
-    "can anyone recommend", "anyone recommend", "anyone know a good",
-    "help with", "seeking a vendor", "seeking a partner",
-    "looking to hire", "want to hire", "looking to outsource", "need to hire",
-    "budget", "agency", "contractor", "outsource", "freelancer", "freelance",
-    "service provider", "need help finding", "who do you use",
-    # Creative / project-based buying signals
-    "recommend someone", "recommend a", "know anyone", "know someone who",
-    "hire someone", "find someone", "need someone", "find a good",
-    "looking to work with", "open to collaborat", "looking to connect with",
-    "shoot", "produce", "edit", "create content", "make a video",
-    "production company", "video production", "creative agency",
-    "need help with", "require a", "require an",
-    # Company hiring signals — growing companies are buyers too
-    "we're hiring", "we are hiring", "now hiring", "hiring for",
-    "open role", "open position", "join our team", "looking to bring on",
+# Tight buyer-intent phrases — people actively seeking to PAY someone externally.
+# These are specific enough that sellers rarely use them as content hooks.
+# Used as a pre-LLM gate: posts with NONE of these are skipped before scoring.
+BUYER_PHRASES = [
+    "can anyone recommend",
+    "anyone recommend",
+    "anyone know a good",
+    "does anyone know a good",
+    "who do you recommend",
+    "who do you use for",
+    "what agency do you",
+    "recommend a good",
+    "recommend an agency",
+    "recommend a freelancer",
+    "any recommendations for",
+    "looking to hire",
+    "want to hire",
+    "need to hire",
+    "looking to outsource",
+    "need to outsource",
+    "looking for a good",
+    "looking for an agency",
+    "looking for a freelancer",
+    "searching for a good",
+    "searching for an agency",
+    "need help finding",
+    "seeking a vendor",
+    "seeking a partner",
+    "budget approved",
+    "willing to pay",
+    "looking for recommendations",
+    "any good agencies",
+    "know any good",
 ]
 
 
@@ -165,22 +191,30 @@ def _is_english(text: str) -> bool:
     return sum(1 for c in letters if ord(c) < 128) / len(letters) > 0.8
 
 
-def _has_buying_signal(text: str) -> bool:
-    """Reject obvious non-buyers. Keywords already target buyer posts so
-    we trust the LLM to do the final qualification — no mandatory buying
-    signal required here."""
+def _has_buying_signal(text: str, require_buyer_phrase: bool = False) -> bool:
+    """
+    Two-stage gate:
+    1. Reject posts that are clearly not buyers (job seekers, sellers, job listings).
+    2. If require_buyer_phrase=True, also require at least one explicit buyer phrase.
+       Use this for noisy sources (LinkedIn) where seller content is rampant.
+       The LLM is then only called on posts that already look like buyers.
+    """
     lower = text.lower()
     if any(sig in lower for sig in JOB_SEEKER_SIGNALS):
         return False
     if any(sig in lower for sig in SELLER_SIGNALS):
+        print(f"[Filter] Seller signal: {text[:80]}")
         return False
     if any(sig in lower for sig in JOB_LISTING_SIGNALS):
         print(f"[Filter] Job listing: {text[:80]}")
         return False
+    if require_buyer_phrase and not any(phrase in lower for phrase in BUYER_PHRASES):
+        print(f"[Filter] No buyer phrase: {text[:80]}")
+        return False
     return True
 
 
-def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "", skip_scoring: bool = False, max_posts: Optional[int] = None) -> tuple:
+def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "", skip_scoring: bool = False, max_posts: Optional[int] = None, require_buyer_phrase: bool = False) -> tuple:
     results = []
     total_scanned = 0
     for post in posts:
@@ -194,8 +228,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
             if not _is_english(text):
                 print(f"[Filter] Non-English: {text[:60]}")
                 continue
-            if not _has_buying_signal(text):
-                print(f"[Filter] No buying signal: {text[:60]}")
+            if not _has_buying_signal(text, require_buyer_phrase=require_buyer_phrase):
                 continue
             # For Reddit: drop posts from clearly off-topic subreddits
             if post.get("_platform") == "reddit":
@@ -710,16 +743,21 @@ async def run_ingestion(
         reddit_results   = all_results[n_li:n_li + n_so]
         twitter_results  = all_results[n_li + n_so:]
 
-        # LinkedIn — no cap, no LLM scoring
+        # LinkedIn — require explicit buyer phrase + LLM scoring
+        # require_buyer_phrase=True filters seller hooks before hitting the LLM
         for (category, keyword), posts in zip(keyword_map, linkedin_results):
             if isinstance(posts, Exception):
                 print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
                 continue
-            saved, scanned = _process_posts(posts, category, user_id, skip_scoring=True)
+            saved, scanned = _process_posts(
+                posts, category, user_id,
+                user_service=user_service, user_icp=user_icp,
+                require_buyer_phrase=True,
+            )
             results.extend(saved)
             total_scanned += scanned
 
-        # Reddit — capped, no LLM scoring
+        # Reddit — capped, no LLM (volume is capped, LLM would be overkill)
         reddit_posts_all = []
         for (category, keyword), posts in zip(social_keyword_map, reddit_results):
             if isinstance(posts, Exception):
@@ -731,13 +769,13 @@ async def run_ingestion(
         if reddit_posts_all:
             saved, scanned = _process_posts(
                 reddit_posts_all, domain or "Custom", user_id,
-                skip_scoring=True, max_posts=REDDIT_CAP
+                skip_scoring=True, max_posts=REDDIT_CAP,
             )
             results.extend(saved)
             total_scanned += scanned
             print(f"[Reddit] saved={len(saved)} from {scanned} scanned (cap={REDDIT_CAP})")
 
-        # Twitter — capped, no LLM scoring
+        # Twitter — capped, no LLM (volume is capped, LLM would be overkill)
         twitter_posts_all = []
         for (category, keyword), posts in zip(social_keyword_map, twitter_results):
             if isinstance(posts, Exception):
@@ -749,7 +787,7 @@ async def run_ingestion(
         if twitter_posts_all:
             saved, scanned = _process_posts(
                 twitter_posts_all, domain or "Custom", user_id,
-                skip_scoring=True, max_posts=TWITTER_CAP
+                skip_scoring=True, max_posts=TWITTER_CAP,
             )
             results.extend(saved)
             total_scanned += scanned
