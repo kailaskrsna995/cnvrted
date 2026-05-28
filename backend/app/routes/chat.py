@@ -70,28 +70,44 @@ STEP 3 — GENERATE after enough context. Rules:
 
 ═══ KEYWORD PHILOSOPHY ═══
 
-Keywords must read like a real post from a BUSINESS OWNER asking their network for a recommendation.
-They are NOT descriptions of your agency. They capture the buyer's voice.
+Keywords are search phrases entered into LinkedIn, Reddit, and Twitter to surface posts from BUYERS actively seeking to hire.
 
-The buyer is a founder, head of marketing, or CEO who needs to hire an agency like yours.
-They post: "Hey network — can anyone recommend a good [service] for [their situation]?"
+Each keyword must sound like a real sentence fragment from a business owner posting on social media asking their network for help. They are NOT service descriptions. They capture the buyer's exact voice and pain.
 
-KEYWORD STRATEGY — generate 2 types, 3 of each:
+THE GOLDEN RULE: Every keyword must start with an explicit buyer signal OR contain a clear pain + need combo. No bare topic keywords. No agency descriptions.
 
-TYPE 1 — SHORT (3-5 words, high match rate on LinkedIn search):
-These are fragments that appear inside real buyer posts. Short = broader match.
-Examples: "recommend video editing agency" / "need video agency" / "outsource video editing" / "looking for video agency" / "need help video content"
+GENERATE 6 KEYWORDS ACROSS THESE 3 PATTERNS (2 each):
 
-TYPE 2 — SPECIFIC (6-9 words, higher quality matches):
-Full buyer-intent sentences that mimic how a real founder would post.
-Openers: "can anyone recommend" / "looking for a good" / "we need a" / "anyone used a good" / "who do you recommend for" / "need help finding"
-Examples: "can anyone recommend a video editing agency for startups" / "looking for a good video production agency for our brand"
+PATTERN 1 — NETWORK RECOMMENDATION ASK:
+The buyer asks their network directly. These work best on LinkedIn.
+Always start with: "can anyone recommend" / "anyone used a good" / "who do you use for" / "does anyone know a good"
+Must include: specific service + buyer context
+✓ GOOD: "can anyone recommend a video ad agency for ecommerce brands"
+✓ GOOD: "anyone used a good creative agency for Meta and TikTok ads"
+✗ BAD: "can anyone recommend creative agency" (too vague, missing buyer context)
 
-RULES FOR ALL KEYWORDS:
-- Always include "agency", "freelancer", or "service" — NEVER just the role alone ("video editor" alone matches job listings)
-- Short keywords: 3-5 words, no filler
-- Specific keywords: include client context (who they are, their stage)
-- All 6 must be different openers/structures
+PATTERN 2 — PAIN + ACTIVE SEARCH:
+The buyer describes their exact problem and signals they're looking externally. Works across LinkedIn, Reddit, Twitter.
+Contains: a pain signal + what they need
+Pain signals: "running out of", "struggling with", "can't keep up with", "need more", "bottlenecked on", "overwhelmed by", "ROAS dropping"
+✓ GOOD: "running out of ad creatives need a production agency"
+✓ GOOD: "struggling to scale creatives for Meta ads looking for agency"
+✓ GOOD: "need more ugc videos for tiktok ads can anyone recommend"
+✗ BAD: "need creative agency" (no pain context, no buyer signal)
+
+PATTERN 3 — EXPLICIT HIRING/OUTSOURCING INTENT:
+The buyer is clearly in vendor-selection mode. Works well on LinkedIn and Reddit.
+Contains: "looking to hire" / "looking for a" / "want to outsource" / "we need a" / "searching for a"
+Must be specific to the exact service + client type
+✓ GOOD: "looking for a video ad creative agency for our ecommerce brand"
+✓ GOOD: "we need a creative partner to scale our paid social ads"
+✗ BAD: "looking for video agency" (too short, returns job listings)
+
+RULES — NON-NEGOTIABLE:
+- Use the buyer's language, not agency language: "ad creatives", "UGC", "video ads", "ROAS", "scaling creatives" — not "content production" or "visual storytelling"
+- Always include the buyer's industry/platform context: "ecommerce", "DTC brand", "Meta ads", "TikTok campaigns", "B2B SaaS"
+- All 6 must use completely different openers
+- Minimum 5 words per keyword — shorter phrases return topic content, not buyers
 
 ═══ CASUAL MESSAGES ═══
 
