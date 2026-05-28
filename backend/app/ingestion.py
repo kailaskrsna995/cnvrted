@@ -252,6 +252,88 @@ def _make_linkedin_buyer_query(keyword: str) -> str:
     return f"can anyone recommend {keyword}"
 
 
+def _make_reddit_search_query(keyword: str) -> str:
+    """
+    Strip buyer-intent openers from a keyword phrase so Reddit's tokenised
+    search matches on the core topic nouns, not the conversational framing.
+
+    Reddit search can't handle 10-word natural-language phrases — it tokenises
+    them and returns any post that contains any of the words, producing noise.
+    Keeping 3–5 topic words ("video ad agency Meta TikTok") returns on-topic
+    posts from buyer-intent subreddits.
+
+    Examples
+    --------
+    "can anyone recommend a video ad agency for Meta and TikTok campaigns"
+        → "video ad agency Meta TikTok"
+    "struggling to scale video ads for Meta and TikTok looking for a production partner"
+        → "scale video ads Meta TikTok"
+    "running out of video ad creatives for paid campaigns need an agency fast"
+        → "video ad creatives paid campaigns"
+    """
+    lower = keyword.lower()
+
+    # Strip leading buyer-intent openers — longest first so partial prefixes
+    # don't shadow full ones ("can anyone recommend a" vs "can anyone recommend")
+    _STRIP_OPENERS = [
+        "can anyone recommend a ", "can anyone recommend an ", "can anyone recommend ",
+        "anyone used a good ", "anyone know a good ", "anyone recommend a ",
+        "anyone recommend an ", "anyone recommend ",
+        "does anyone know a good ", "does anyone know ",
+        "has anyone used a good ", "has anyone used ", "has anyone worked with ",
+        "who do you use for ", "who do you recommend for ", "who would you recommend ",
+        "looking to hire a ", "looking to hire an ", "looking to hire ",
+        "looking for a good ", "looking for an ", "looking for a ", "looking for ",
+        "we are looking for a ", "we're looking for a ", "i'm looking for a ",
+        "i am looking for a ", "our company is looking for ", "our team is looking for ",
+        "we need a ", "we need an ", "we need ",
+        "i need a ", "i need an ",
+        "struggling to scale ", "struggling to ", "struggling with ",
+        "running out of ",
+        "want to hire a ", "want to hire an ", "want to hire ",
+        "searching for a ", "searching for an ",
+        "seeking a ", "seeking an ",
+    ]
+    for opener in _STRIP_OPENERS:
+        if lower.startswith(opener):
+            keyword = keyword[len(opener):]
+            lower = keyword.lower()
+            break
+
+    # Strip leading article
+    for art in ("the ", "a ", "an "):
+        if lower.startswith(art):
+            keyword = keyword[len(art):]
+            lower = keyword.lower()
+            break
+
+    # Strip common trailing filler phrases
+    _STRIP_SUFFIXES = [
+        " looking for a production partner", " looking for production partner",
+        " looking for an agency", " looking for agency",
+        " need an agency fast", " need an agency", " need agency",
+        " for our paid social campaigns", " for paid social campaigns",
+        " for paid campaigns", " for our brand",
+        " to create ads for meta tiktok and youtube",
+        " to create ads", " create ads for us",
+        " for us fast", " fast",
+    ]
+    for suffix in _STRIP_SUFFIXES:
+        if lower.endswith(suffix.lower()):
+            keyword = keyword[: len(keyword) - len(suffix)]
+            lower = keyword.lower()
+            break
+
+    # Keep at most 5 words; drop common stop-words if longer
+    words = keyword.split()
+    if len(words) > 5:
+        _STOP = {"for", "and", "or", "the", "a", "an", "to", "of", "our",
+                 "with", "in", "on", "at", "by", "from", "us", "we", "create"}
+        words = [w for w in words if w.lower() not in _STOP][:5]
+
+    return " ".join(words).strip() or keyword.split()[0]
+
+
 def _is_english(text: str) -> bool:
     letters = [c for c in text if c.isalpha()]
     if not letters:
@@ -523,23 +605,27 @@ BUYER_SUBREDDITS = (
 
 async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     from urllib.parse import quote
-    # Restrict to buyer-intent subreddits — global search returns r/gaming, r/dating, etc.
+    # Strip buyer-intent openers — Reddit tokenises long phrases and returns noise.
+    # Short topic-noun queries ("video ad agency Meta TikTok") return on-topic posts.
+    search_query = _make_reddit_search_query(keyword)
+    print(f"[Reddit] query='{search_query}' (from keyword: '{keyword[:60]}')")
+    # Restrict to buyer-intent subreddits; t=month gives more results than t=week
     search_url = (
         f"https://www.reddit.com/r/{BUYER_SUBREDDITS}/search/"
-        f"?q={quote(keyword)}&sort=new&t=week&restrict_sr=1&type=link"
+        f"?q={quote(search_query)}&sort=new&t=month&restrict_sr=1&type=link"
     )
     raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
         "startUrls": [{"url": search_url}],
         "searchPosts": True,
         "searchComments": False,
         "searchCommunities": False,
-        "maxPostsCount": 25,
+        "maxPostsCount": 30,
         "fastMode": True,
         "includeNSFW": False,
         "crawlCommentsPerPost": False,
         "proxy": {"useApifyProxy": True, "apifyProxyGroups": ["RESIDENTIAL"]},
     }, "Reddit")
-    print(f"[Reddit] '{keyword}' returned {len(raw_items)} posts")
+    print(f"[Reddit] '{search_query}' returned {len(raw_items)} posts")
     if raw_items:
         print(f"[Reddit Debug] keys={list(raw_items[0].keys())}")
         print(f"[Reddit Debug] sample={raw_items[0]}")
