@@ -66,6 +66,118 @@ async def seed_mock_leads():
         inserted.append(lead)
     return {"seeded": len(inserted)}
 
+@router.get("/apify-check/")
+async def apify_check(
+    keyword: str = Query(default="can anyone recommend marketing agency"),
+):
+    """Low-level Apify diagnostic. Shows run start status, poll status, and raw item count.
+    Hit this to see exactly why LinkedIn scraping is returning 0 posts."""
+    from app.config import APIFY_API_TOKEN
+    from app.ingestion import build_search_url, APIFY_ACTOR
+    from urllib.parse import quote
+
+    steps = []
+    token_present = bool(APIFY_API_TOKEN)
+    steps.append({"step": "token_check", "token_present": token_present, "token_prefix": APIFY_API_TOKEN[:8] + "..." if token_present else None})
+
+    if not token_present:
+        return {"error": "APIFY_API_TOKEN not set", "steps": steps}
+
+    url = build_search_url(keyword)
+    steps.append({"step": "search_url", "url": url})
+
+    async with httpx.AsyncClient(timeout=300) as client:
+        # Check Apify account status / credits
+        try:
+            me_resp = await client.get(
+                "https://api.apify.com/v2/users/me",
+                params={"token": APIFY_API_TOKEN},
+                timeout=10,
+            )
+            me_data = me_resp.json()
+            plan = me_data.get("data", {}).get("plan", {})
+            usage = me_data.get("data", {}).get("limits", {})
+            steps.append({
+                "step": "account",
+                "status_code": me_resp.status_code,
+                "plan_id": plan.get("id"),
+                "monthly_usage_usd": usage.get("monthlyUsageCreditsUsdLimit"),
+            })
+        except Exception as e:
+            steps.append({"step": "account", "error": str(e)})
+
+        # Try to start a run
+        payload = {"urls": [url], "limitPerSource": 5, "deepScrape": True, "rawData": False}
+        try:
+            run_resp = await client.post(
+                f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
+                params={"token": APIFY_API_TOKEN},
+                json=payload,
+                timeout=30,
+            )
+            steps.append({
+                "step": "start_run",
+                "status_code": run_resp.status_code,
+                "body": run_resp.json() if run_resp.status_code in (200, 201) else run_resp.text[:400],
+            })
+        except Exception as e:
+            steps.append({"step": "start_run", "error": str(e)})
+            return {"steps": steps}
+
+        if run_resp.status_code not in (200, 201):
+            return {"steps": steps, "conclusion": "Run failed to start — check token and credits"}
+
+        run_id = run_resp.json()["data"]["id"]
+
+        # Poll up to 90s
+        final_status = "UNKNOWN"
+        for i in range(18):
+            await asyncio.sleep(5)
+            try:
+                poll = await client.get(
+                    f"https://api.apify.com/v2/actor-runs/{run_id}",
+                    params={"token": APIFY_API_TOKEN},
+                )
+                final_status = poll.json()["data"]["status"]
+                steps.append({"step": f"poll_{i+1}", "status": final_status})
+                if final_status in ("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"):
+                    break
+            except Exception as e:
+                steps.append({"step": f"poll_{i+1}", "error": str(e)})
+
+        if final_status != "SUCCEEDED":
+            return {"steps": steps, "conclusion": f"Run ended with status={final_status}"}
+
+        # Fetch dataset
+        try:
+            run_data = await client.get(
+                f"https://api.apify.com/v2/actor-runs/{run_id}",
+                params={"token": APIFY_API_TOKEN},
+            )
+            dataset_id = run_data.json()["data"]["defaultDatasetId"]
+            items_resp = await client.get(
+                f"https://api.apify.com/v2/datasets/{dataset_id}/items",
+                params={"token": APIFY_API_TOKEN},
+            )
+            items = items_resp.json() if items_resp.status_code == 200 else []
+            steps.append({
+                "step": "dataset",
+                "dataset_id": dataset_id,
+                "item_count": len(items),
+                "sample_keys": list(items[0].keys()) if items else [],
+                "first_item_text_preview": items[0].get("text", "")[:200] if items else None,
+            })
+            return {
+                "keyword": keyword,
+                "item_count": len(items),
+                "steps": steps,
+                "conclusion": f"{'OK — got items' if items else 'Run SUCCEEDED but dataset is EMPTY'}",
+            }
+        except Exception as e:
+            steps.append({"step": "dataset", "error": str(e)})
+            return {"steps": steps}
+
+
 @router.get("/debug-scrape/")
 async def debug_scrape(
     keyword: str = Query(default="can anyone recommend marketing agency"),
