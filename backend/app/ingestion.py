@@ -219,13 +219,14 @@ _BUYER_OPENERS = (
     "has anyone", "have you used", "does anyone",
     "looking for", "looking to", "we are looking", "we're looking",
     "i am looking", "i'm looking", "our team is looking", "our company is looking",
-    "we need", "i need ", "i need a", "i need an", "need a ", "need an ",
-    "need to hire", "need to outsource", "need help", "need someone",
+    "we need", "i need", "need a ", "need an ", "need to ", "need help", "need someone",
     "our team needs", "our company needs",
     "who do you", "who would you", "what agency", "what do you",
     "recommend", "recommendation",
     "searching for", "seeking a", "seeking an",
     "want to hire", "looking to outsource",
+    # Verb-first buyer phrases Claude commonly generates
+    "outsource ", "hire a", "hire an", "find a", "find an",
 )
 
 
