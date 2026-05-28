@@ -801,12 +801,8 @@ async def run_ingestion(
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
-        # Google/Serper LinkedIn (supplementary — finds buyer posts that Apify misses).
-        # Only runs if SERPER_API_KEY is configured. Results are merged with Apify results.
-        google_tasks = (
-            [fetch_google_linkedin_posts(client, kw) for _, kw in keyword_map]
-            if SERPER_API_KEY else []
-        )
+        # Google/Serper LinkedIn — disabled until paid Serper plan (free plan blocks site: queries)
+        google_tasks = []
 
         reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in social_keyword_map]
         twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in social_keyword_map]
@@ -852,13 +848,19 @@ async def run_ingestion(
 
         # Reddit — LLM scored (max 15 posts, so cost is trivial; real scores > 50 look good)
         reddit_posts_all = []
+        _reddit_seen_urls: set = set()
         for (category, keyword), posts in zip(social_keyword_map, reddit_results):
             if isinstance(posts, Exception):
                 print(f"[Error] Reddit keyword='{keyword}': {posts}")
                 continue
             for p in posts:
+                url = p.get("url", "") or p.get("postUrl", "")
+                if url and url in _reddit_seen_urls:
+                    continue  # same post appeared in multiple keyword results — skip
+                if url:
+                    _reddit_seen_urls.add(url)
                 p["_category"] = category
-            reddit_posts_all.extend(posts)
+                reddit_posts_all.append(p)
         if reddit_posts_all:
             saved, scanned = _process_posts(
                 reddit_posts_all, domain or "Custom", user_id,
@@ -871,13 +873,19 @@ async def run_ingestion(
 
         # Twitter — LLM scored, capped at TWITTER_CAP to control cost
         twitter_posts_all = []
+        _twitter_seen_urls: set = set()
         for (category, keyword), posts in zip(social_keyword_map, twitter_results):
             if isinstance(posts, Exception):
                 print(f"[Error] Twitter keyword='{keyword}': {posts}")
                 continue
             for p in posts:
+                url = p.get("url", "")
+                if url and url in _twitter_seen_urls:
+                    continue
+                if url:
+                    _twitter_seen_urls.add(url)
                 p["_category"] = category
-            twitter_posts_all.extend(posts)
+                twitter_posts_all.append(p)
         if twitter_posts_all:
             saved, scanned = _process_posts(
                 twitter_posts_all, domain or "Custom", user_id,
