@@ -110,13 +110,10 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
       <div className="w-full max-w-md border border-white/5 rounded-[24px] bg-[#07070a]/40 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,0,0,0.5)] z-10 overflow-hidden">
         <div className="p-10 flex flex-col max-h-[90vh] overflow-y-auto custom-scrollbar">
 
-          {/* Logo */}
-          <div className="flex flex-col items-start mb-8">
-            <img src="/logo.png" alt="Logo" className="w-[72px] h-auto object-contain mix-blend-screen mb-2" />
-            <div className="flex items-center gap-2">
-              <span className="text-white font-bold tracking-[0.25em] text-xs uppercase">cnvrted</span>
-              <span className="text-[9px] text-white/50 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold">BETA</span>
-            </div>
+          {/* Wordmark */}
+          <div className="flex items-center gap-2 mb-8">
+            <span className="text-white font-bold tracking-[0.25em] text-sm uppercase">cnvrted</span>
+            <span className="text-[9px] text-white/50 border border-white/20 px-1.5 py-0.5 rounded uppercase tracking-widest font-semibold">BETA</span>
           </div>
 
           {/* Tabs */}
@@ -136,7 +133,7 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lCls}>Name <span className="text-red-400">*</span></label>
-                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Kailas" autoFocus className={iCls} />
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" autoFocus className={iCls} />
                 </div>
                 <div>
                   <label className={lCls}>Role</label>
@@ -147,11 +144,11 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lCls}>Company name</label>
-                  <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="cnvrted" className={iCls} />
+                  <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Acme Inc." className={iCls} />
                 </div>
                 <div>
                   <label className={lCls}>Company URL</label>
-                  <input type="text" value={companyUrl} onChange={e => setCompanyUrl(e.target.value)} placeholder="cnvrted.com" className={iCls} />
+                  <input type="text" value={companyUrl} onChange={e => setCompanyUrl(e.target.value)} placeholder="acme.com" className={iCls} />
                 </div>
               </div>
 
@@ -166,7 +163,7 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/g, '').toLowerCase())}
-                  placeholder="kailas_krsna"
+                  placeholder="jane_smith"
                   className={iCls}
                 />
                 <p className="text-[11px] text-gray-600 mt-1.5">Lowercase letters, numbers and underscores only.</p>
