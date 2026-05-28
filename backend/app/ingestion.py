@@ -211,6 +211,43 @@ BUYER_PHRASES = [
 ]
 
 
+# Buyer-intent openers — if a keyword already starts with one of these,
+# LinkedIn's search will surface posts from real buyers.
+# Used by _make_linkedin_buyer_query() to wrap bare topic keywords.
+_BUYER_OPENERS = (
+    "can anyone", "anyone used", "anyone know", "anyone recommend",
+    "has anyone", "have you used", "does anyone",
+    "looking for", "looking to", "we are looking", "we're looking",
+    "i am looking", "i'm looking", "our team is looking", "our company is looking",
+    "we need", "i need ", "i need a", "i need an", "need a ", "need an ",
+    "need to hire", "need to outsource", "need help", "need someone",
+    "our team needs", "our company needs",
+    "who do you", "who would you", "what agency", "what do you",
+    "recommend", "recommendation",
+    "searching for", "seeking a", "seeking an",
+    "want to hire", "looking to outsource",
+)
+
+
+def _make_linkedin_buyer_query(keyword: str) -> str:
+    """Ensure a keyword is phrased as a buyer query before sending to LinkedIn search.
+
+    LinkedIn's search surfaces buyer posts when the query matches the language
+    real buyers use. Bare topic keywords ("video production agency") return seller
+    content and educational posts. Buyer-framed queries ("can anyone recommend
+    video production agency") surface people actively seeking to hire.
+    """
+    lower = keyword.lower().strip()
+    # If the keyword already starts with a known buyer opener — leave it
+    if any(lower.startswith(s) for s in _BUYER_OPENERS):
+        return keyword
+    # If the keyword contains any buyer phrase anywhere — leave it
+    if any(phrase in lower for phrase in BUYER_PHRASES):
+        return keyword
+    # Bare topic keyword — prepend buyer framing
+    return f"can anyone recommend {keyword}"
+
+
 def _is_english(text: str) -> bool:
     letters = [c for c in text if c.isalpha()]
     if not letters:
@@ -755,23 +792,38 @@ async def run_ingestion(
     results = []
     total_scanned = 0
     async with httpx.AsyncClient(timeout=300) as client:
-        linkedin_tasks = [fetch_apify_results(client, kw) for _, kw in keyword_map]
+        from app.config import SERPER_API_KEY
+
+        # LinkedIn: wrap bare topic keywords as buyer-intent phrases so LinkedIn's
+        # search surfaces posts from people actively looking to hire, not seller content.
+        li_queries = [_make_linkedin_buyer_query(kw) for _, kw in keyword_map]
+        linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
+        print(f"[Ingestion] LinkedIn queries: {li_queries}")
+
+        # Google/Serper LinkedIn (supplementary — finds buyer posts that Apify misses).
+        # Only runs if SERPER_API_KEY is configured. Results are merged with Apify results.
+        google_tasks = (
+            [fetch_google_linkedin_posts(client, kw) for _, kw in keyword_map]
+            if SERPER_API_KEY else []
+        )
+
         reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in social_keyword_map]
         twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in social_keyword_map]
 
         all_results = await asyncio.gather(
-            *linkedin_tasks, *reddit_tasks, *twitter_tasks,
+            *linkedin_tasks, *google_tasks, *reddit_tasks, *twitter_tasks,
             return_exceptions=True
         )
 
-        n_li = len(keyword_map)
+        n_li = len(linkedin_tasks)
+        n_go = len(google_tasks)
         n_so = len(social_keyword_map)
         linkedin_results = all_results[:n_li]
-        reddit_results   = all_results[n_li:n_li + n_so]
-        twitter_results  = all_results[n_li + n_so:]
+        google_results   = all_results[n_li:n_li + n_go]
+        reddit_results   = all_results[n_li + n_go:n_li + n_go + n_so]
+        twitter_results  = all_results[n_li + n_go + n_so:]
 
-        # LinkedIn — require explicit buyer phrase + LLM scoring
-        # require_buyer_phrase=True filters seller hooks before hitting the LLM
+        # LinkedIn (Apify) — require explicit buyer phrase + LLM scoring
         for (category, keyword), posts in zip(keyword_map, linkedin_results):
             if isinstance(posts, Exception):
                 print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
@@ -784,7 +836,20 @@ async def run_ingestion(
             results.extend(saved)
             total_scanned += scanned
 
-        # Reddit — capped, no LLM (volume is capped, LLM would be overkill)
+        # LinkedIn (Google/Serper) — already searched with buyer phrases, skip phrase gate
+        for (category, keyword), posts in zip(keyword_map, google_results):
+            if isinstance(posts, Exception):
+                print(f"[Error] Google LinkedIn keyword='{keyword}': {posts}")
+                continue
+            saved, scanned = _process_posts(
+                posts, category, user_id,
+                user_service=user_service, user_icp=user_icp,
+                require_buyer_phrase=False,  # Google query already scoped to buyer phrases
+            )
+            results.extend(saved)
+            total_scanned += scanned
+
+        # Reddit — LLM scored (max 15 posts, so cost is trivial; real scores > 50 look good)
         reddit_posts_all = []
         for (category, keyword), posts in zip(social_keyword_map, reddit_results):
             if isinstance(posts, Exception):
@@ -796,7 +861,8 @@ async def run_ingestion(
         if reddit_posts_all:
             saved, scanned = _process_posts(
                 reddit_posts_all, domain or "Custom", user_id,
-                skip_scoring=True, max_posts=REDDIT_CAP,
+                max_posts=REDDIT_CAP,
+                user_service=user_service, user_icp=user_icp,
             )
             results.extend(saved)
             total_scanned += scanned
