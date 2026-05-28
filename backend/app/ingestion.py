@@ -59,8 +59,41 @@ def generate_lead_id(url: str, text: str, author: str) -> str:
 
 def build_search_url(keyword: str) -> str:
     from urllib.parse import quote
+    # Quote the buyer-intent opener so LinkedIn returns posts that CONTAIN the
+    # phrase rather than posts that are merely topically relevant.
+    #
+    # Without quoting: "can anyone recommend a video ad agency for Meta..."
+    #   → LinkedIn returns thought-leadership posts about video agencies (useless)
+    #
+    # With quoting: '"can anyone recommend" a video ad agency for Meta...'
+    #   → LinkedIn returns posts where someone actually wrote "can anyone recommend"
+    #     i.e. real buyers asking their network for agency referrals
+    parts = keyword.split()
+    _QUOTE_STARTERS = (
+        "can anyone recommend",
+        "anyone used a good",
+        "looking to hire",
+        "looking for a",
+        "we need a",
+        "who do you",
+        "struggling to",
+        "running out of",
+        "anyone know a good",
+        "does anyone know",
+        "anyone recommend",
+    )
+    quoted_keyword = keyword
+    for starter in _QUOTE_STARTERS:
+        if keyword.lower().startswith(starter):
+            n = len(starter.split())
+            quoted_keyword = f'"{" ".join(parts[:n])}" {" ".join(parts[n:])}'.strip()
+            break
     # past-month casts a wider net for rare buyer posts; tighten to past-week once volume is proven
-    return f"https://www.linkedin.com/search/results/content/?datePosted=%22past-month%22&keywords={quote(keyword)}&origin=FACETED_SEARCH&sortBy=%22date_posted%22"
+    return (
+        "https://www.linkedin.com/search/results/content/"
+        f"?datePosted=%22past-month%22&keywords={quote(quoted_keyword)}"
+        "&origin=FACETED_SEARCH&sortBy=%22date_posted%22"
+    )
 
 async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     # Step 1: start run
