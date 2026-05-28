@@ -761,6 +761,7 @@ async def run_ingestion(
     custom_keywords: Optional[List[str]] = None,
     domain: Optional[str] = None,
     user_id: Optional[str] = None,
+    service_override: Optional[str] = None,
 ):
     # Fetch user context for outreach personalisation
     user_service = ""
@@ -775,6 +776,13 @@ async def run_ingestion(
                 user_icp = od.get("icp", "")
         except Exception as e:
             print(f"[Ingestion] Could not fetch user context: {e}")
+
+    # Prefer service passed from the current chat session over the static DB value.
+    # Each scan can carry a fresh description of what the user sells so the niche
+    # filter in scorer.py disqualifies off-topic leads correctly.
+    if service_override:
+        user_service = service_override
+        print(f"[Ingestion] Service overridden from scan request: '{user_service}'")
 
     if custom_keywords:
         keyword_map = [(domain or "Custom", kw) for kw in custom_keywords]

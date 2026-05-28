@@ -8,7 +8,6 @@ import { ChatInterface, ChatMsg } from '../components/ChatInterface'
 import { LeadFeed } from '../components/LeadFeed'
 import { PostPreviewModal } from '../components/PostPreviewModal'
 import { OnboardingScreen } from '../components/OnboardingScreen'
-import { OnboardingQuestionnaire } from '../components/OnboardingQuestionnaire'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -119,6 +118,7 @@ export default function Dashboard() {
   const [scanning, setScanning] = useState(false)
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
   const [lastScanParams, setLastScanParams] = useState<{ domain: string; keywords: string[] } | null>(null)
+  const [serviceDescription, setServiceDescription] = useState('')
   const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Chat ──────────────────────────────────────────────────────────────────
@@ -246,12 +246,7 @@ export default function Dashboard() {
       setUserPosition(data.profession || '')
       localStorage.setItem('cnvrted_user_name', displayName)
       if (data.username) { localStorage.setItem('cnvrted_username', data.username); setUserEmail(data.username) }
-      const hasPrefs = !!(data.service_offering?.trim())
-      setPreferencesSet(hasPrefs)
-      if (hasPrefs) {
-        const suggestions = [data.service_offering, ...(data.target_industries || [])].filter(Boolean)
-        setSuggestedDomains(suggestions.slice(0, 5))
-      }
+      setPreferencesSet(true)
     } catch {}
   }
 
@@ -322,6 +317,16 @@ export default function Dashboard() {
         text: data.message || "What does your agency do? I'll find the right buyers for you.",
         ...(data.type === 'ready' ? { scanParams: { domain: data.domain, keywords: data.keywords } } : {})
       }
+      // When the chat has enough context to generate keywords, capture the user's
+      // service description so we can pass it to every scan. This lets the scorer
+      // filter off-niche leads even if the user's DB profile is stale or generic.
+      if (data.type === 'ready') {
+        const userMsgs = [
+          ...prevHistory.filter(m => m.role === 'user').map(m => m.text),
+          userMsg,
+        ].filter(m => m.length > 10).join('. ')
+        setServiceDescription(userMsgs)
+      }
       setChatMessages(prev => [...prev, aiMsg])
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     } catch {
@@ -339,6 +344,9 @@ export default function Dashboard() {
       const body: Record<string, unknown> = {}
       if (userId) body.user_id = userId
       if (params) { body.keywords = params.keywords; body.domain = params.domain }
+      // Pass the service description captured from the current chat session so the
+      // scorer can filter off-niche leads correctly, regardless of the DB profile.
+      if (serviceDescription) body.service = serviceDescription
       const res = await fetch(`${API}/ingest/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -375,11 +383,11 @@ export default function Dashboard() {
   if (!userId) {
     return (
       <OnboardingScreen
-        onComplete={(id, name, status) => {
+        onComplete={(id, name, _status) => {
           setUserId(id)
           setUserName(name)
           fetchSaved(id)
-          setPreferencesSet(status !== 'pending' ? true : false)
+          setPreferencesSet(true)
         }}
       />
     )
@@ -387,27 +395,6 @@ export default function Dashboard() {
 
   if (preferencesSet === null) return null
 
-  if (!preferencesSet) {
-    return (
-      <OnboardingQuestionnaire
-        userId={userId}
-        onComplete={async (serviceOffering, industries) => {
-          setPreferencesSet(true)
-          const suggestions = [serviceOffering, ...industries].filter(Boolean)
-          setSuggestedDomains(suggestions.slice(0, 5))
-          try {
-            const res = await fetch(`${API}/search/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ raw_query: serviceOffering })
-            })
-            const data = await res.json()
-            setSearchQuery(serviceOffering)
-          } catch {}
-        }}
-      />
-    )
-  }
 
   // ── Main dashboard ────────────────────────────────────────────────────────
   return (

@@ -14,6 +14,9 @@ class AuthRequest(BaseModel):
     password: str
     name: str = ""
     profession: str = ""
+    company_name: str = ""
+    company_url: str = ""
+    company_email: str = ""
 
 
 class PreferencesRequest(BaseModel):
@@ -61,16 +64,24 @@ def auth(req: AuthRequest):
         return user
 
     # New user — register
-    if not req.username.endswith("@cnvrted.com"):
-        raise HTTPException(status_code=403, detail="Access denied. Only @cnvrted.com emails are allowed.")
+    try:
+        result = supabase.table("users").insert({
+            "username": req.username,
+            "name": req.name,
+            "profession": req.profession,
+            "password_hash": hash_password(req.password),
+            "onboarding_data": {
+                "company_name": req.company_name,
+                "company_url": req.company_url,
+                "company_email": req.company_email,
+            },
+        }).execute()
+    except Exception as e:
+        # Unique constraint violation — username already taken
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(status_code=409, detail="Username already taken.")
+        raise HTTPException(status_code=500, detail="Registration failed.")
 
-    result = supabase.table("users").insert({
-        "username": req.username,
-        "name": req.name,
-        "profession": req.profession,
-        "password_hash": hash_password(req.password),
-    }).execute()
-    
     return result.data[0]
 
 
