@@ -59,6 +59,13 @@ E) VAGUE MUSING — no specific ask, no problem, no urgency:
    Signs: "thinking about", "someday", "eventually", "exploring the idea of", no concrete need stated
    → REJECT.
 
+═══ STEP 1.5 — SERVICE RELEVANCE CHECK ═══
+
+If the user content begins with [FOR:] that line names the service the lead-finder sells.
+A lead is only QUALIFIED if the post's need could plausibly be served by that offering.
+If the post is clearly seeking something unrelated (e.g. user sells video production but post wants a cold email tool), set qualified: false, intent_score: 0.
+Ignore [FOR:] when deciding the score — only use it for the qualified flag.
+
 ═══ STEP 2 — SCORE REAL BUYERS ═══
 
 A post is a REAL BUYER if they are clearly seeking to hire, contract, or purchase a service/tool externally RIGHT NOW.
@@ -199,10 +206,11 @@ def generate_outreach(post_text: str, service: str, icp: str) -> str:
         return ""
 
 
-def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
+def score_post(post_text: str, category_hint: Optional[str] = None, user_service: str = "") -> dict:
     """Two-tier scoring:
     - Haiku scores everything (cheap)
     - If score is borderline (40–70), Sonnet re-scores to confirm
+    - user_service: what the lead-finder sells — used to disqualify off-niche leads
     """
     # Truncate to keep costs low — 2400 chars ≈ 600 tokens, enough for scoring
     post_text = post_text[:2400]
@@ -211,11 +219,14 @@ def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
     if category_hint:
         system_blocks.append({"type": "text", "text": f"\nFor this post, prefer category: \"{category_hint}\" if it fits."})
 
+    # Prefix with service context so the scorer can filter off-niche leads
+    user_content = f"[FOR: {user_service}]\n\n{post_text}" if user_service else post_text
+
     tokens_in_before  = _session_input_tokens
     tokens_out_before = _session_output_tokens
 
     # Pass 1 — Haiku (fast + cheap)
-    raw = _call_llm(system_blocks, post_text, model="claude-haiku-4-5-20251001")
+    raw = _call_llm(system_blocks, user_content, model="claude-haiku-4-5-20251001")
     if not raw:
         print(f"[Scorer] Haiku failed for: {post_text[:60]}")
         return {"category": "None", "intent_score": 0, "timeline": "Passive", "qualified": False, "tokens_used": 0}
@@ -226,7 +237,7 @@ def score_post(post_text: str, category_hint: Optional[str] = None) -> dict:
 
     # Pass 2 — Sonnet only for borderline posts (30–60)
     if 30 <= score <= 60:
-        raw2 = _call_llm(system_blocks, post_text, model="claude-sonnet-4-6")
+        raw2 = _call_llm(system_blocks, user_content, model="claude-sonnet-4-6")
         if raw2:
             result2 = json.loads(raw2)
             print(f"[Scorer] Sonnet re-score={result2.get('intent_score')} (was {score})")

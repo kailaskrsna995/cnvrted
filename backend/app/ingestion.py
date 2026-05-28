@@ -343,7 +343,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
                 }
                 outreach_line = ""
             else:
-                scored = score_post(text, category_hint=category)
+                scored = score_post(text, category_hint=category, user_service=user_service)
                 score = scored.get("intent_score", 0)
                 if score == 0:
                     print(f"[Score=0] platform={post.get('_platform','li')} | {text[:120]}")
