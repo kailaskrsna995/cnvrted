@@ -868,7 +868,7 @@ async def run_ingestion(
             total_scanned += scanned
             print(f"[Reddit] saved={len(saved)} from {scanned} scanned (cap={REDDIT_CAP})")
 
-        # Twitter — capped, no LLM (volume is capped, LLM would be overkill)
+        # Twitter — LLM scored, capped at TWITTER_CAP to control cost
         twitter_posts_all = []
         for (category, keyword), posts in zip(social_keyword_map, twitter_results):
             if isinstance(posts, Exception):
@@ -880,7 +880,8 @@ async def run_ingestion(
         if twitter_posts_all:
             saved, scanned = _process_posts(
                 twitter_posts_all, domain or "Custom", user_id,
-                skip_scoring=True, max_posts=TWITTER_CAP,
+                max_posts=TWITTER_CAP,
+                user_service=user_service, user_icp=user_icp,
             )
             results.extend(saved)
             total_scanned += scanned
