@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Lead } from '../lib/types'
 import { formatRelativeTime } from '../lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,6 +27,28 @@ export function LeadFeed({
   setPreviewLead: (lead: Lead | null) => void
   category: string
 }) {
+  const [likedLeads,     setLikedLeads]     = useState<Set<string>>(new Set())
+  const [dislikedLeads,  setDislikedLeads]  = useState<Set<string>>(new Set())
+  const [revealedLeads,  setRevealedLeads]  = useState<Set<string>>(new Set())
+
+  const toggleLike = (id: string) => {
+    setLikedLeads(prev => {
+      const s = new Set(prev)
+      if (s.has(id)) { s.delete(id) } else { s.add(id); setDislikedLeads(d => { const x = new Set(d); x.delete(id); return x }) }
+      return s
+    })
+  }
+  const toggleDislike = (id: string) => {
+    setDislikedLeads(prev => {
+      const s = new Set(prev)
+      if (s.has(id)) { s.delete(id) } else { s.add(id); setLikedLeads(d => { const x = new Set(d); x.delete(id); return x }) }
+      return s
+    })
+  }
+
+  // Hide disliked leads from the feed
+  const visibleLeads = leads.filter(l => !dislikedLeads.has(l.lead_id))
+
   return (
     <>
       <AnimatePresence>
@@ -50,6 +73,7 @@ export function LeadFeed({
           className="absolute left-0 top-0 bottom-0 w-1.5 -ml-[3px] cursor-col-resize hover:bg-indigo-500/50 transition-colors z-50 hidden lg:block"
         />
 
+        {/* Header */}
         <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0 bg-[#050508] z-10">
           <span className="text-[13px] font-medium text-white">Lead feed</span>
           <div className="flex items-center gap-3">
@@ -62,87 +86,145 @@ export function LeadFeed({
           </div>
         </div>
 
+        {/* Scroll container — overscroll-contain stops jitter on Windows */}
         <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
-          {leads.length === 0 ? (
+          {visibleLeads.length === 0 ? (
             <EmptyState type={category === 'Saved' ? 'Saved' : 'Leads'} />
           ) : (
             <div className="flex flex-col gap-3">
-              <AnimatePresence>
-                {leads.map((lead, i) => {
-                  const initials = (lead.author || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
-                  const isHot = lead.timeline === 'Urgent'
-                  const isWarm = lead.timeline === 'Active'
+              {visibleLeads.map((lead, i) => {
+                const initials  = (lead.author || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+                const isHot     = lead.timeline === 'Urgent'
+                const isWarm    = lead.timeline === 'Active'
+                const isLiked   = likedLeads.has(lead.lead_id)
+                const hasContact = !!(lead.contact_email || lead.contact_phone)
+                const isRevealed = revealedLeads.has(lead.lead_id)
 
-                  return (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                      transition={{ duration: 0.3, delay: Math.min(i * 0.05, 0.5) }}
-                      key={lead.id || lead.lead_id}
-                      className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4 hover:border-white/10 transition group cursor-pointer"
-                      onClick={() => setPreviewLead(lead)}
-                    >
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-semibold">
-                            {initials}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-medium text-white truncate max-w-[120px]">{lead.author}</p>
-                          </div>
+                return (
+                  <motion.div
+                    key={lead.id || lead.lead_id}
+                    /* No `layout` prop — it causes reflow-based animations that
+                       stutter on Windows when scrolling. Entrance animation only. */
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
+                    className={`bg-[#0a0a0f] border rounded-2xl p-4 hover:border-white/10 transition group cursor-pointer ${
+                      isLiked ? 'border-emerald-500/25' : 'border-white/5'
+                    }`}
+                    onClick={() => setPreviewLead(lead)}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-semibold shrink-0">
+                          {initials}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-gray-500">{formatRelativeTime(lead.posted_at || lead.ingested_at)}</span>
-                          <span className="text-[10px] font-bold text-emerald-400">{lead.intent_score}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-[#181820] text-indigo-300 font-medium">
-                            {isHot ? 'Hot' : isWarm ? 'Warm' : 'Cool'}
-                          </span>
+                        <div>
+                          <p className="text-[13px] font-medium text-white truncate max-w-[120px]">{lead.author}</p>
                         </div>
                       </div>
-
-                      {/* Content */}
-                      <p className="text-[12px] text-gray-300 leading-relaxed mb-3 line-clamp-4">
-                        {lead.post_text || lead.exact_need}
-                      </p>
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {(lead.exact_need?.toLowerCase().includes('budget') || lead.post_text?.toLowerCase().includes('budget')) && (
-                          <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[10px] text-gray-400">Budget included</span>
-                        )}
-                        {lead.platform && (
-                          <span className={`px-2.5 py-1 rounded-md border text-[10px] capitalize ${
-                            lead.platform === 'reddit' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
-                            lead.platform === 'twitter' ? 'bg-white/5 border-white/10 text-gray-400' :
-                            'bg-blue-500/10 border-blue-500/20 text-blue-400'
-                          }`}>
-                            {lead.platform === 'twitter' ? 'X' : lead.platform}
-                          </span>
-                        )}
-                        <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[10px] text-gray-400">{lead.category || 'General'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500">{formatRelativeTime(lead.posted_at || lead.ingested_at)}</span>
+                        <span className="text-[10px] font-bold text-emerald-400">{lead.intent_score}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-[#181820] text-indigo-300 font-medium">
+                          {isHot ? 'Hot' : isWarm ? 'Warm' : 'Cool'}
+                        </span>
                       </div>
+                    </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => toggleSave(lead)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${savedLeadIds.has(lead.lead_id) ? 'text-indigo-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill={savedLeadIds.has(lead.lead_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-                          </button>
-                          <button className="w-8 h-8 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 flex items-center justify-center transition">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                          </button>
-                        </div>
-                        <button className="px-4 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 text-[11px] font-medium hover:bg-indigo-600 hover:text-white transition" onClick={e => e.stopPropagation()}>
-                          Contact
+                    {/* Post text */}
+                    <p className="text-[12px] text-gray-300 leading-relaxed mb-3 line-clamp-4">
+                      {lead.post_text || lead.exact_need}
+                    </p>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(lead.exact_need?.toLowerCase().includes('budget') || lead.post_text?.toLowerCase().includes('budget')) && (
+                        <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[10px] text-gray-400">Budget included</span>
+                      )}
+                      {lead.platform && (
+                        <span className={`px-2.5 py-1 rounded-md border text-[10px] capitalize ${
+                          lead.platform === 'reddit'  ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
+                          lead.platform === 'twitter' ? 'bg-white/5 border-white/10 text-gray-400' :
+                          'bg-blue-500/10 border-blue-500/20 text-blue-400'
+                        }`}>
+                          {lead.platform === 'twitter' ? 'X' : lead.platform}
+                        </span>
+                      )}
+                      <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[10px] text-gray-400">{lead.category || 'General'}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-3 border-t border-white/5" onClick={e => e.stopPropagation()}>
+
+                      {/* Left: save + like + dislike */}
+                      <div className="flex gap-1.5">
+                        {/* Bookmark / save */}
+                        <button
+                          onClick={() => toggleSave(lead)}
+                          title="Save lead"
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                            savedLeadIds.has(lead.lead_id)
+                              ? 'text-indigo-400 bg-indigo-500/10'
+                              : 'text-gray-500 hover:text-white hover:bg-white/5'
+                          }`}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={savedLeadIds.has(lead.lead_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                        </button>
+
+                        {/* Thumbs up */}
+                        <button
+                          onClick={() => toggleLike(lead.lead_id)}
+                          title="Good lead"
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                            isLiked
+                              ? 'text-emerald-400 bg-emerald-500/10'
+                              : 'text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10'
+                          }`}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                            <path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>
+                          </svg>
+                        </button>
+
+                        {/* Thumbs down */}
+                        <button
+                          onClick={() => toggleDislike(lead.lead_id)}
+                          title="Not relevant"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L14 22a3.13 3.13 0 0 1-3-3.88Z"/>
+                          </svg>
                         </button>
                       </div>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
+
+                      {/* Right: contact reveal */}
+                      {hasContact ? (
+                        isRevealed ? (
+                          <span className="text-[11px] text-emerald-400 font-mono truncate max-w-[160px]">
+                            {lead.contact_email || lead.contact_phone}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setRevealedLeads(prev => new Set([...prev, lead.lead_id]))}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 text-[11px] font-medium border border-emerald-500/30 hover:bg-emerald-500/25 transition"
+                          >
+                            Reveal contact ✦
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          disabled
+                          className="px-3 py-1.5 rounded-lg bg-white/3 text-gray-600 text-[11px] font-medium border border-white/5 cursor-not-allowed select-none"
+                        >
+                          No contact
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
             </div>
           )}
 

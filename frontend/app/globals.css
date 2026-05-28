@@ -20,6 +20,9 @@ html, body {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.08) transparent;
+  /* Windows scroll-jitter fixes */
+  overscroll-behavior-y: contain;   /* stop scroll chaining to parent */
+  -webkit-overflow-scrolling: touch; /* GPU-backed momentum layer */
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
@@ -61,6 +64,7 @@ html, body {
   height: 130vh;
   bottom: -65vh;
   left: -35vw;
+  contain: paint;  /* isolate repaint — prevents scroll invalidating this layer */
   background: radial-gradient(
     ellipse at 55% 42%,
     rgba(110, 40, 200, 0.55) 0%,
@@ -81,6 +85,7 @@ html, body {
   bottom: -65vh;
   left: -35vw;
   background: transparent;
+  contain: paint;
   border-radius: 60% 40% 30% 70% / 55% 35% 65% 45%;
   border: 1px solid rgba(80, 210, 255, 0.28);
   box-shadow:

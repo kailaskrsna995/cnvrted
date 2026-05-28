@@ -6,6 +6,7 @@ import { formatDate } from '../lib/utils'
 
 export function PostPreviewModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const [outreachCopied, setOutreachCopied] = useState(false)
+  const [contactRevealed, setContactRevealed] = useState(false)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -50,8 +51,29 @@ export function PostPreviewModal({ lead, onClose }: { lead: Lead; onClose: () =>
           <p className="text-[13px] text-gray-400 leading-relaxed whitespace-pre-wrap">{lead.post_text}</p>
         </div>
 
-        <div className="px-6 py-4 border-t border-white/5 flex justify-between items-center">
-          <span className="text-[12px] text-gray-500">{formatDate(lead.posted_at || lead.ingested_at)}</span>
+        <div className="px-6 py-4 border-t border-white/5 flex flex-wrap justify-between items-center gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] text-gray-500">{formatDate(lead.posted_at || lead.ingested_at)}</span>
+
+            {/* Contact reveal */}
+            {(lead.contact_email || lead.contact_phone) ? (
+              contactRevealed ? (
+                <span className="text-[12px] text-emerald-400 font-mono">
+                  {lead.contact_email || lead.contact_phone}
+                </span>
+              ) : (
+                <button
+                  onClick={() => setContactRevealed(true)}
+                  className="text-[12px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg hover:bg-emerald-500/25 transition font-medium"
+                >
+                  Reveal contact ✦
+                </button>
+              )
+            ) : (
+              <span className="text-[12px] text-gray-600 border border-white/5 px-3 py-1.5 rounded-lg">No contact</span>
+            )}
+          </div>
+
           {lead.source_url ? (
             <a
               href={lead.source_url}
