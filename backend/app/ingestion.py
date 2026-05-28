@@ -282,7 +282,7 @@ def _has_buying_signal(text: str, require_buyer_phrase: bool = False) -> bool:
     return True
 
 
-def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "", skip_scoring: bool = False, max_posts: Optional[int] = None, require_buyer_phrase: bool = False) -> tuple:
+def _process_posts(posts: list, category: str, user_id: Optional[str], user_service: str = "", user_icp: str = "", skip_scoring: bool = False, max_posts: Optional[int] = None, require_buyer_phrase: bool = False, seen_ids: Optional[set] = None) -> tuple:
     results = []
     total_scanned = 0
     for post in posts:
@@ -434,6 +434,12 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
                     pass
 
             lead_id = generate_lead_id(url, text, author)
+            # Skip if we've already saved this exact post in this scan run
+            if seen_ids is not None:
+                if lead_id in seen_ids:
+                    print(f"[Dedup] Skipping duplicate lead_id={lead_id[:8]} | {text[:60]}")
+                    continue
+                seen_ids.add(lead_id)
             lead = {
                 "lead_id": lead_id,
                 "platform": post.get("_platform", "linkedin"),
@@ -831,6 +837,10 @@ async def run_ingestion(
         reddit_results   = all_results[n_li + n_go:n_li + n_go + n_so]
         twitter_results  = all_results[n_li + n_go + n_so:]
 
+        # Shared dedup set — prevents the same post being scored/saved more than once
+        # across all platforms and keyword results within a single scan run.
+        _seen_lead_ids: set = set()
+
         # LinkedIn (Apify) — require explicit buyer phrase + LLM scoring
         for (category, keyword), posts in zip(keyword_map, linkedin_results):
             if isinstance(posts, Exception):
@@ -840,6 +850,7 @@ async def run_ingestion(
                 posts, category, user_id,
                 user_service=user_service, user_icp=user_icp,
                 require_buyer_phrase=True,
+                seen_ids=_seen_lead_ids,
             )
             results.extend(saved)
             total_scanned += scanned
@@ -852,7 +863,8 @@ async def run_ingestion(
             saved, scanned = _process_posts(
                 posts, category, user_id,
                 user_service=user_service, user_icp=user_icp,
-                require_buyer_phrase=False,  # Google query already scoped to buyer phrases
+                require_buyer_phrase=False,
+                seen_ids=_seen_lead_ids,
             )
             results.extend(saved)
             total_scanned += scanned
@@ -877,6 +889,7 @@ async def run_ingestion(
                 reddit_posts_all, domain or "Custom", user_id,
                 max_posts=REDDIT_CAP,
                 user_service=user_service, user_icp=user_icp,
+                seen_ids=_seen_lead_ids,
             )
             results.extend(saved)
             total_scanned += scanned
@@ -900,6 +913,7 @@ async def run_ingestion(
         if twitter_posts_all:
             saved, scanned = _process_posts(
                 twitter_posts_all, domain or "Custom", user_id,
+                seen_ids=_seen_lead_ids,
                 max_posts=TWITTER_CAP,
                 user_service=user_service, user_icp=user_icp,
             )
