@@ -59,39 +59,14 @@ def generate_lead_id(url: str, text: str, author: str) -> str:
 
 def build_search_url(keyword: str) -> str:
     from urllib.parse import quote
-    # Quote the buyer-intent opener so LinkedIn returns posts that CONTAIN the
-    # phrase rather than posts that are merely topically relevant.
-    #
-    # Without quoting: "can anyone recommend a video ad agency for Meta..."
-    #   → LinkedIn returns thought-leadership posts about video agencies (useless)
-    #
-    # With quoting: '"can anyone recommend" a video ad agency for Meta...'
-    #   → LinkedIn returns posts where someone actually wrote "can anyone recommend"
-    #     i.e. real buyers asking their network for agency referrals
-    parts = keyword.split()
-    _QUOTE_STARTERS = (
-        "can anyone recommend",
-        "anyone used a good",
-        "looking to hire",
-        "looking for a",
-        "we need a",
-        "who do you",
-        "struggling to",
-        "running out of",
-        "anyone know a good",
-        "does anyone know",
-        "anyone recommend",
-    )
-    quoted_keyword = keyword
-    for starter in _QUOTE_STARTERS:
-        if keyword.lower().startswith(starter):
-            n = len(starter.split())
-            quoted_keyword = f'"{" ".join(parts[:n])}" {" ".join(parts[n:])}'.strip()
-            break
-    # past-month casts a wider net for rare buyer posts; tighten to past-week once volume is proven
+    # NOTE: LinkedIn's search ignores quote syntax, so phrase-quoting just
+    # shrinks the result pool without improving precision. We instead send the
+    # plain buyer-framed phrase to surface the widest set of candidate posts,
+    # then let the LLM scorer (score_post + qualified gate) decide which are
+    # genuine buyers. past-month casts a wide net for rare buyer posts.
     return (
         "https://www.linkedin.com/search/results/content/"
-        f"?datePosted=%22past-month%22&keywords={quote(quoted_keyword)}"
+        f"?datePosted=%22past-month%22&keywords={quote(keyword)}"
         "&origin=FACETED_SEARCH&sortBy=%22date_posted%22"
     )
 
@@ -100,7 +75,7 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     run_resp = await client.post(
         f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
-        json={"urls": [build_search_url(keyword)], "limitPerSource": 30, "deepScrape": True, "rawData": False}
+        json={"urls": [build_search_url(keyword)], "limitPerSource": 15, "deepScrape": True, "rawData": False}
     )
     if run_resp.status_code not in (200, 201):
         print(f"[Apify] Failed to start run for '{keyword}': {run_resp.text[:200]}")
@@ -938,9 +913,11 @@ async def run_ingestion(
     async with httpx.AsyncClient(timeout=300) as client:
         from app.config import SERPER_API_KEY
 
-        # LinkedIn: wrap bare topic keywords as buyer-intent phrases so LinkedIn's
-        # search surfaces posts from people actively looking to hire, not seller content.
-        li_queries = [_make_linkedin_buyer_query(kw) for _, kw in keyword_map]
+        # LinkedIn: search the short topic core (same extraction as Reddit/Twitter)
+        # so the actor returns the widest set of topically-relevant candidates.
+        # The LLM scorer then decides buyer intent. Prepending "can anyone
+        # recommend" to pain/trigger cores produced garbage queries, so we drop it.
+        li_queries = [_make_reddit_search_query(kw) for _, kw in keyword_map]
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
@@ -967,7 +944,11 @@ async def run_ingestion(
         # across all platforms and keyword results within a single scan run.
         _seen_lead_ids: set = set()
 
-        # LinkedIn (Apify) — require explicit buyer phrase + LLM scoring
+        # LinkedIn (Apify) — hard seller/job filters + LLM scoring decide.
+        # We do NOT require an exact buyer phrase: LinkedIn returns content posts
+        # that the rigid phrase list zeroed out (saved=0). Letting the LLM scorer
+        # judge buyer intent lets genuine buyers with varied wording through while
+        # content/sellers get scored low and dropped by the `qualified` gate.
         for (category, keyword), posts in zip(keyword_map, linkedin_results):
             if isinstance(posts, Exception):
                 print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
@@ -975,7 +956,8 @@ async def run_ingestion(
             saved, scanned = _process_posts(
                 posts, category, user_id,
                 user_service=user_service, user_icp=user_icp,
-                require_buyer_phrase=True,
+                require_buyer_phrase=False,
+                max_posts=8,
                 seen_ids=_seen_lead_ids,
             )
             results.extend(saved)
