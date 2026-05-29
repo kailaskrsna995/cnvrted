@@ -75,7 +75,7 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     run_resp = await client.post(
         f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
-        json={"urls": [build_search_url(keyword)], "limitPerSource": 8, "deepScrape": True, "rawData": False}
+        json={"urls": [build_search_url(keyword)], "limitPerSource": 15, "deepScrape": True, "rawData": False}
     )
     if run_resp.status_code not in (200, 201):
         print(f"[Apify] Failed to start run for '{keyword}': {run_resp.text[:200]}")
@@ -934,34 +934,32 @@ async def run_ingestion(
     async with httpx.AsyncClient(timeout=300) as client:
         from app.config import SERPER_API_KEY
 
-        # LinkedIn: wrap each keyword in buyer framing so the search surfaces
-        # brands asking for vendor recommendations or expressing a need — not
-        # agency self-promo or agencies posting internal job openings.
-        # _make_linkedin_buyer_query preserves keywords that already start with
-        # a buyer opener (e.g. "looking for ...") and prepends
-        # "can anyone recommend" to bare topic keywords.
-        li_queries = [_make_linkedin_buyer_query(kw) for _, kw in keyword_map[:3]]
+        # LinkedIn: 2 buyer-framing queries (PRIORITY — explicit agency-hire asks) +
+        # 1 hiring-role query (FILLER — companies hiring for a relevant role; scorer
+        # distinguishes brand hires = buyers vs. agency internal hires = low score).
+        li_queries = (
+            [_make_linkedin_buyer_query(kw) for _, kw in keyword_map[:2]] +
+            [f"hiring {_make_reddit_search_query(kw)}" for _, kw in keyword_map[2:3]]
+        )
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
         # Google/Serper LinkedIn — disabled until paid Serper plan (free plan blocks site: queries)
         google_tasks = []
 
-        reddit_tasks   = [fetch_reddit_results(client, kw) for _, kw in social_keyword_map]
+        # Reddit removed — kept functions for future use if needed
         twitter_tasks  = [fetch_twitter_results(client, kw) for _, kw in social_keyword_map]
 
         all_results = await asyncio.gather(
-            *linkedin_tasks, *google_tasks, *reddit_tasks, *twitter_tasks,
+            *linkedin_tasks, *google_tasks, *twitter_tasks,
             return_exceptions=True
         )
 
         n_li = len(linkedin_tasks)
         n_go = len(google_tasks)
-        n_so = len(social_keyword_map)
         linkedin_results = all_results[:n_li]
         google_results   = all_results[n_li:n_li + n_go]
-        reddit_results   = all_results[n_li + n_go:n_li + n_go + n_so]
-        twitter_results  = all_results[n_li + n_go + n_so:]
+        twitter_results  = all_results[n_li + n_go:]
 
         # Shared dedup set — prevents the same post being scored/saved more than once
         # across all platforms and keyword results within a single scan run.
@@ -999,32 +997,6 @@ async def run_ingestion(
             )
             results.extend(saved)
             total_scanned += scanned
-
-        # Reddit — LLM scored (max 15 posts, so cost is trivial; real scores > 50 look good)
-        reddit_posts_all = []
-        _reddit_seen_urls: set = set()
-        for (category, keyword), posts in zip(social_keyword_map, reddit_results):
-            if isinstance(posts, Exception):
-                print(f"[Error] Reddit keyword='{keyword}': {posts}")
-                continue
-            for p in posts:
-                url = p.get("url", "") or p.get("postUrl", "")
-                if url and url in _reddit_seen_urls:
-                    continue  # same post appeared in multiple keyword results — skip
-                if url:
-                    _reddit_seen_urls.add(url)
-                p["_category"] = category
-                reddit_posts_all.append(p)
-        if reddit_posts_all:
-            saved, scanned = _process_posts(
-                reddit_posts_all, domain or "Custom", user_id,
-                max_posts=REDDIT_CAP,
-                user_service=user_service, user_icp=user_icp,
-                seen_ids=_seen_lead_ids,
-            )
-            results.extend(saved)
-            total_scanned += scanned
-            print(f"[Reddit] saved={len(saved)} from {scanned} scanned (cap={REDDIT_CAP})")
 
         # Twitter — LLM scored, capped at TWITTER_CAP to control cost
         twitter_posts_all = []
