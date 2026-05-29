@@ -297,10 +297,16 @@ def _make_reddit_search_query(keyword: str) -> str:
         "we need a ", "we need an ", "we need ",
         "i need a ", "i need an ",
         "struggling to scale ", "struggling to ", "struggling with ",
-        "running out of ",
+        "running out of ", "ran out of ",
+        "can't keep up with ", "cant keep up with ", "can't keep up ", "cant keep up ",
+        "drowning in ", "falling behind on ", "falling behind ",
+        "stretched thin on ", "overwhelmed with ", "overwhelmed by ",
+        "tired of ", "fed up with ", "behind on ",
         "want to hire a ", "want to hire an ", "want to hire ",
         "searching for a ", "searching for an ",
         "seeking a ", "seeking an ",
+        "scaling our ", "scaling up ", "ramping up our ", "ramping up ",
+        "doubling down on ", "expanding into ", "launching our ", "launching ",
     ]
     for opener in _STRIP_OPENERS:
         if lower.startswith(opener):
@@ -338,7 +344,14 @@ def _make_reddit_search_query(keyword: str) -> str:
     words = keyword.split()
     _STOP = {"for", "and", "or", "the", "a", "an", "to", "of", "our",
              "with", "in", "on", "at", "by", "from", "us", "we", "create",
-             "both", "all", "any", "my", "your", "their", "its"}
+             "both", "all", "any", "my", "your", "their", "its",
+             # verbs / state words — never the topic, only conversational framing
+             "is", "are", "be", "im", "i'm", "cant", "can't", "keep", "up",
+             "out", "down", "behind", "really", "just", "getting", "into",
+             # pain adjectives / verbs — strip so the topic noun survives
+             "drowning", "struggling", "running", "ran", "stretched", "thin",
+             "inconsistent", "falling", "overwhelmed", "tired", "fed",
+             "scaling", "ramping", "doubling", "expanding", "launching"}
     clean = [w for w in words if w.lower() not in _STOP]
     # Take the first 3 meaningful words
     result = " ".join(clean[:3]).strip()
