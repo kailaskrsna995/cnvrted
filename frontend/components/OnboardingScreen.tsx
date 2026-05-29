@@ -46,6 +46,9 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
 
   const finish = (user: { id: string; name?: string; username: string }) => {
     const displayName = user.name || user.username
+    // Clear any stale session before writing new user data — prevents old
+    // name/id bleeding through when switching accounts without logging out.
+    localStorage.clear()
     localStorage.setItem('cnvrted_user_id',   user.id)
     localStorage.setItem('cnvrted_user_name', displayName)
     localStorage.setItem('cnvrted_username',  user.username)
