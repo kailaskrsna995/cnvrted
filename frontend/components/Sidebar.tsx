@@ -95,35 +95,6 @@ export function Sidebar({
           </div>
         </nav>
 
-        {/* Bottom: credits + user */}
-        <div className="px-4 pb-4 pt-3 border-t border-white/5 shrink-0">
-          <div className="bg-[#0a0a0f] border border-white/5 rounded-xl p-3 mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-indigo-400 text-[11px]">✦</span>
-                <span className="text-[12px] font-medium text-white">Early Access</span>
-              </div>
-              <span className="text-[10px] text-gray-600">14d left</span>
-            </div>
-            <div className="w-full h-0.5 bg-gray-800 rounded-full mb-1.5 overflow-hidden">
-              <div className="h-full bg-indigo-500 rounded-full" style={{ width: '28%' }} />
-            </div>
-            <p className="text-[10px] text-gray-600">2.8K / 10K credits</p>
-          </div>
-
-          <button onClick={() => setProfileOpen(true)} className="w-full flex items-center justify-between px-1 hover:opacity-80 transition">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-semibold">
-                {firstName[0]?.toUpperCase() || 'U'}
-              </div>
-              <div className="text-left">
-                <p className="text-[12px] font-medium text-white leading-tight">{firstName || 'User'}</p>
-                <p className="text-[10px] text-gray-500 leading-tight">Early Access</p>
-              </div>
-            </div>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-        </div>
 
       </aside>
     </>
