@@ -934,18 +934,13 @@ async def run_ingestion(
     async with httpx.AsyncClient(timeout=300) as client:
         from app.config import SERPER_API_KEY
 
-        # LinkedIn: a bare topic search ("video agency") returns agency self-promo
-        # and thought-leadership, not buyers — that scored 0 and saved nothing.
-        # Instead frame queries the way real demand appears on LinkedIn:
-        #   • "hiring <core>"  → company hiring posts (high volume; now accepted
-        #                        as leads — a company hiring a role is a buyer).
-        #   • buyer-recommendation framing → people asking their network to recommend.
-        # Extract clean topic cores first, then build both framings.
-        li_cores = [_make_reddit_search_query(kw) for _, kw in keyword_map[:3]]
-        li_cores = [c for c in li_cores if c]
-        li_queries = [f"hiring {c}" for c in li_cores[:2]]
-        if li_cores:
-            li_queries.append(_make_linkedin_buyer_query(li_cores[0]))
+        # LinkedIn: wrap each keyword in buyer framing so the search surfaces
+        # brands asking for vendor recommendations or expressing a need — not
+        # agency self-promo or agencies posting internal job openings.
+        # _make_linkedin_buyer_query preserves keywords that already start with
+        # a buyer opener (e.g. "looking for ...") and prepends
+        # "can anyone recommend" to bare topic keywords.
+        li_queries = [_make_linkedin_buyer_query(kw) for _, kw in keyword_map[:3]]
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
@@ -1034,6 +1029,7 @@ async def run_ingestion(
         # Twitter — LLM scored, capped at TWITTER_CAP to control cost
         twitter_posts_all = []
         _twitter_seen_urls: set = set()
+        _twitter_seen_texts: set = set()   # catches same-content spam at different URLs
         for (category, keyword), posts in zip(social_keyword_map, twitter_results):
             if isinstance(posts, Exception):
                 print(f"[Error] Twitter keyword='{keyword}': {posts}")
@@ -1042,8 +1038,14 @@ async def run_ingestion(
                 url = p.get("url", "")
                 if url and url in _twitter_seen_urls:
                     continue
+                # Dedup by text prefix — spam bots post identical content at many URLs
+                text_key = (p.get("text", "") or p.get("fullText", ""))[:80].strip()
+                if text_key and text_key in _twitter_seen_texts:
+                    continue
                 if url:
                     _twitter_seen_urls.add(url)
+                if text_key:
+                    _twitter_seen_texts.add(text_key)
                 p["_category"] = category
                 twitter_posts_all.append(p)
         if twitter_posts_all:
