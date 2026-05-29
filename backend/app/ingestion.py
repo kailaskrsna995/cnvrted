@@ -499,14 +499,14 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
                 except Exception:
                     posted_at = None
 
-            # Drop Twitter posts older than 4 days
+            # Drop Twitter posts older than 90 days (matches the 90d fetch window)
             if post.get("_platform") == "twitter":
                 drop = True
                 if posted_at:
                     try:
                         from datetime import datetime as _dt2
                         age_days = (_dt2.utcnow() - _dt2.fromisoformat(posted_at)).days
-                        if age_days <= 4:
+                        if age_days <= 90:
                             drop = False
                         else:
                             print(f"[Filter] Twitter post too old ({age_days}d): {text[:60]}")
