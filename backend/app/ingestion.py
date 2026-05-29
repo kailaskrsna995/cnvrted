@@ -857,14 +857,18 @@ async def fetch_google_linkedin_posts(client: httpx.AsyncClient, keyword: str) -
 async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
     from datetime import datetime as _dt, timedelta as _td
     since_date = (_dt.utcnow() - _td(days=4)).strftime("%Y-%m-%d")
+    # Twitter search also tokenises — long sentences match nothing. Use the same
+    # short topic-core extraction we use for Reddit.
+    search_query = _make_reddit_search_query(keyword)
+    print(f"[Twitter] query='{search_query}' (from keyword: '{keyword[:60]}')")
     raw_items = await _run_apify_actor(client, TWITTER_ACTOR, {
-        "searchTerms": [keyword],
+        "searchTerms": [search_query],
         "sort": "Latest",
         "tweetLanguage": "en",
         "maxItems": 25,
         "since": since_date,
     }, "Twitter")
-    print(f"[Twitter] '{keyword}' returned {len(raw_items)} posts")
+    print(f"[Twitter] '{search_query}' returned {len(raw_items)} posts")
     normalised = []
     for item in raw_items:
         text = item.get("text", item.get("fullText", ""))

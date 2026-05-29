@@ -91,44 +91,41 @@ STEP 3 — GENERATE after enough context. Rules:
 
 ═══ KEYWORD PHILOSOPHY ═══
 
-Keywords are search phrases entered into LinkedIn, Reddit, and Twitter to surface posts from BUYERS actively seeking to hire.
+Keywords are SHORT search phrases entered into Reddit, Twitter, and LinkedIn to surface posts from BUYERS who need to hire an agency. They are matched against real posts, so they must be short enough to actually appear in someone's post — NOT full sentences.
 
-Each keyword must sound like a real sentence fragment from a business owner posting on social media asking their network for help. They are NOT service descriptions. They capture the buyer's exact voice and pain.
+THE #1 RULE: SHORT. Each keyword is 3–6 words. No 10-word sentences. No one posts a 12-word sentence verbatim, so long phrases match nothing. Extract the core.
+✗ BAD (too long): "can anyone recommend a content creation agency for social media and paid ads"
+✓ GOOD (core): "content agency recommendation"
 
-THE GOLDEN RULE: Every keyword must start with an explicit buyer signal OR contain a clear pain + need combo. No bare topic keywords. No agency descriptions.
+THE #2 RULE: DIVERSITY. Do NOT make all 6 keywords "looking for a vendor". Catch buyers at different stages. Generate EXACTLY 2 from each bucket below:
 
-GENERATE 6 KEYWORDS ACROSS THESE 3 PATTERNS (2 each):
+BUCKET A — PAIN (2 keywords): the buyer venting a problem, before they've started shopping. These catch buyers earliest.
+Pain language: "drowning in", "can't keep up with", "struggling with", "running out of", "ROAS dropping", "inconsistent", "stretched thin", "falling behind on"
+✓ "drowning in content requests"
+✓ "social media is inconsistent"
+✓ "running out of ad creatives"
+✓ "can't keep up with content"
 
-PATTERN 1 — NETWORK RECOMMENDATION ASK:
-The buyer asks their network directly. These work best on LinkedIn.
-Always start with: "can anyone recommend" / "anyone used a good" / "who do you use for" / "does anyone know a good"
-Must include: specific service + buyer context
-✓ GOOD: "can anyone recommend a video ad agency for ecommerce brands"
-✓ GOOD: "anyone used a good creative agency for Meta and TikTok ads"
-✗ BAD: "can anyone recommend creative agency" (too vague, missing buyer context)
+BUCKET B — SEEKING (2 keywords): the buyer actively hunting for a vendor.
+Seeking language: "looking for", "need a", "recommend a", "who do you use for", "hiring a", "outsource"
+✓ "looking for content agency"
+✓ "need a video ad partner"
+✓ "ugc agency recommendation"
+✓ "outsource paid social"
 
-PATTERN 2 — PAIN + ACTIVE SEARCH:
-The buyer describes their exact problem and signals they're looking externally. Works across LinkedIn, Reddit, Twitter.
-Contains: a pain signal + what they need
-Pain signals: "running out of", "struggling with", "can't keep up with", "need more", "bottlenecked on", "overwhelmed by", "ROAS dropping"
-✓ GOOD: "running out of ad creatives need a production agency"
-✓ GOOD: "struggling to scale creatives for Meta ads looking for agency"
-✓ GOOD: "need more ugc videos for tiktok ads can anyone recommend"
-✗ BAD: "need creative agency" (no pain context, no buyer signal)
-
-PATTERN 3 — EXPLICIT HIRING/OUTSOURCING INTENT:
-The buyer is clearly in vendor-selection mode. Works well on LinkedIn and Reddit.
-Contains: "looking to hire" / "looking for a" / "want to outsource" / "we need a" / "searching for a"
-Must be specific to the exact service + client type
-✓ GOOD: "looking for a video ad creative agency for our ecommerce brand"
-✓ GOOD: "we need a creative partner to scale our paid social ads"
-✗ BAD: "looking for video agency" (too short, returns job listings)
+BUCKET C — TRIGGER (2 keywords): an event that signals fresh budget or new need.
+Trigger language: "just raised", "scaling our", "ramping up", "just hired a head of", "launching", "expanding into", "doubling down on"
+✓ "scaling our paid social"
+✓ "ramping up content production"
+✓ "just hired head of marketing"
+✓ "launching our DTC brand"
 
 RULES — NON-NEGOTIABLE:
-- Use the buyer's language, not agency language: "ad creatives", "UGC", "video ads", "ROAS", "scaling creatives" — not "content production" or "visual storytelling"
-- Always include the buyer's industry/platform context: "ecommerce", "DTC brand", "Meta ads", "TikTok campaigns", "B2B SaaS"
-- All 6 must use completely different openers
-- Minimum 5 words per keyword — shorter phrases return topic content, not buyers
+- 3–6 words each. If you write more than 6 words, cut it down.
+- Use the buyer's language, not agency language: "ad creatives", "UGC", "video ads", "ROAS", "paid social" — not "content production" or "visual storytelling".
+- Include ONE context word where natural: "ecommerce", "DTC", "Meta ads", "TikTok", "B2B SaaS", "content", "ads".
+- All 6 different. 2 from PAIN, 2 from SEEKING, 2 from TRIGGER.
+- No question marks, no "can anyone" fluff padding — keep the core nouns/verbs only.
 
 ═══ CASUAL MESSAGES ═══
 
