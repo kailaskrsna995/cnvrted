@@ -75,7 +75,7 @@ async def fetch_apify_results(client: httpx.AsyncClient, keyword: str) -> list:
     run_resp = await client.post(
         f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs",
         params={"token": APIFY_API_TOKEN},
-        json={"urls": [build_search_url(keyword)], "limitPerSource": 15, "deepScrape": True, "rawData": False}
+        json={"urls": [build_search_url(keyword)], "limitPerSource": 8, "deepScrape": True, "rawData": False}
     )
     if run_resp.status_code not in (200, 201):
         print(f"[Apify] Failed to start run for '{keyword}': {run_resp.text[:200]}")
@@ -580,7 +580,10 @@ async def _run_apify_actor(client: httpx.AsyncClient, actor: str, payload: dict,
         return []
     run_id = run_resp.json()["data"]["id"]
     status = ""
-    for _ in range(24):
+    # 50 × 5s = 250s. The Reddit actor uses a residential proxy and is slow —
+    # a 120s window made 2 of 3 runs give up while still RUNNING (the demo's
+    # best buyer source). Give it room to finish.
+    for _ in range(50):
         await asyncio.sleep(5)
         status_resp = await client.get(
             f"https://api.apify.com/v2/actor-runs/{run_id}",
@@ -917,7 +920,10 @@ async def run_ingestion(
         # so the actor returns the widest set of topically-relevant candidates.
         # The LLM scorer then decides buyer intent. Prepending "can anyone
         # recommend" to pain/trigger cores produced garbage queries, so we drop it.
-        li_queries = [_make_reddit_search_query(kw) for _, kw in keyword_map]
+        # LinkedIn topic-search returns agency self-promo/tips, not buyers, and
+        # burns most of the scan's cost+time for ~0 leads. Cap it to the first 3
+        # keywords so Reddit (the real buyer source) and Twitter get priority.
+        li_queries = [_make_reddit_search_query(kw) for _, kw in keyword_map[:3]]
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
