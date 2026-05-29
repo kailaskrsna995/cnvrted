@@ -53,11 +53,7 @@ C) JOB SEEKER — individual wanting to be employed:
    Signs: "open to work", "hire me", "seeking a role", "my resume", "looking for a job".
    → REJECT.
 
-D) EMPLOYEE JOB LISTING — hiring a full-time staff member, not contracting a vendor/agency:
-   Signs: "we're hiring a", "now hiring", "join our team", "full-time role", "salary", "benefits".
-   → REJECT.
-
-E) PURE TIPS / LISTICLE — sharing knowledge with no need of their own:
+D) PURE TIPS / LISTICLE — sharing knowledge with no need of their own:
    Signs: "5 tips for", "thread:", how-to guide, no stated problem they personally need solved.
    → REJECT.
 
@@ -82,6 +78,8 @@ Push score UP: explicit ask; first-person frustration with a current vendor/tool
 Push score DOWN: addresses others rather than self; no problem of their own; purely promotional; vague musing with no problem.
 
 Key correction: a stated PROBLEM the author personally owns IS buying intent even without the words "looking for". Frustration and "I can't find anyone good" are strong signals, not disqualifiers.
+
+HIRING POSTS ARE BUYERS: a company hiring for a role ("we're hiring a video editor", "looking for a freelance designer", "need a contractor for X", "now hiring a marketing manager") has budget and an active, specific need an agency could fulfil instead of a full-time hire. Treat these as buyers and score them 40–75 by specificity and seniority of the role. The decision-maker / department is the lead. EXCEPTION: a staffing/recruiting agency posting many unrelated roles, or a generic job-board repost, scores low — that is not a direct buyer. Individual JOB SEEKERS (bucket C) are still rejected.
 
 INTENT SCORE: probability they would pay someone external. Ignore post age, tone, platform.
 

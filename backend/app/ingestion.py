@@ -379,9 +379,9 @@ def _has_buying_signal(text: str, require_buyer_phrase: bool = False) -> bool:
     if any(sig in lower for sig in SELLER_SIGNALS):
         print(f"[Filter] Seller signal: {text[:80]}")
         return False
-    if any(sig in lower for sig in JOB_LISTING_SIGNALS):
-        print(f"[Filter] Job listing: {text[:80]}")
-        return False
+    # NOTE: hiring posts are intentionally NOT gated here. A company hiring for a
+    # role has budget + an active need an agency could fulfil, so we let these
+    # reach the LLM scorer, which judges them as buyers (see scorer SYSTEM_PROMPT).
     if require_buyer_phrase and not any(phrase in lower for phrase in BUYER_PHRASES):
         print(f"[Filter] No buyer phrase: {text[:80]}")
         return False
