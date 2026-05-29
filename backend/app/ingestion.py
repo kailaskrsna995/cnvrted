@@ -834,7 +834,7 @@ async def fetch_google_linkedin_posts(client: httpx.AsyncClient, keyword: str) -
 
 async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list:
     from datetime import datetime as _dt, timedelta as _td
-    since_date = (_dt.utcnow() - _td(days=4)).strftime("%Y-%m-%d")
+    since_date = (_dt.utcnow() - _td(days=90)).strftime("%Y-%m-%d")
     # Twitter search also tokenises — long sentences match nothing. Use the same
     # short topic-core extraction we use for Reddit.
     search_query = _make_reddit_search_query(keyword)
@@ -843,7 +843,7 @@ async def fetch_twitter_results(client: httpx.AsyncClient, keyword: str) -> list
         "searchTerms": [search_query],
         "sort": "Latest",
         "tweetLanguage": "en",
-        "maxItems": 25,
+        "maxItems": 40,
         "since": since_date,
     }, "Twitter")
     print(f"[Twitter] '{search_query}' returned {len(raw_items)} posts")
