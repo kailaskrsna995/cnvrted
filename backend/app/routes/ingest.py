@@ -13,7 +13,10 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 # Global lock — prevents concurrent scans from stacking up
 _scan_in_progress = False
-_last_scan_stats = {"total_scanned": 0, "total_rejected": 0, "total_saved": 0}
+# Per-user scan stats, keyed by user_id. Without this, a new user sees the
+# previous scanner's "Posts Scanned" count leak onto their dashboard.
+_last_scan_stats: dict = {}
+_EMPTY_STATS = {"total_scanned": 0, "total_rejected": 0, "total_saved": 0}
 
 
 class IngestRequest(BaseModel):
@@ -34,8 +37,9 @@ MOCK_POSTS = [
 ]
 
 @router.get("/status/")
-def scan_status():
-    return {"scanning": _scan_in_progress, **_last_scan_stats}
+def scan_status(user_id: Optional[str] = Query(default=None)):
+    stats = _last_scan_stats.get(user_id or "", _EMPTY_STATS)
+    return {"scanning": _scan_in_progress, **stats}
 
 @router.post("/stop/")
 def stop_scan():
@@ -217,10 +221,11 @@ async def debug_scrape(
 
 
 async def _run_and_unlock(keywords, domain, user_id, service=None):
-    global _scan_in_progress, _last_scan_stats
+    global _scan_in_progress
     try:
         stats = await run_ingestion(keywords, domain, user_id, service_override=service)
-        _last_scan_stats = stats
+        # Scope stats to the user who triggered the scan
+        _last_scan_stats[user_id or ""] = stats
     finally:
         _scan_in_progress = False
 

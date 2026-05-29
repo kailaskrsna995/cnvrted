@@ -174,15 +174,15 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    if (!ready) return
-    fetch(`${API}/ingest/status/`)
+    if (!ready || !userId) return
+    fetch(`${API}/ingest/status/?user_id=${userId}`)
       .then(r => r.json())
       .then(data => {
         setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
         if (data.scanning) { setScanning(true); startPolling() }
       })
       .catch(() => {})
-  }, [ready])
+  }, [ready, userId])
 
   useEffect(() => {
     if (cooldownRemaining <= 0) return
@@ -220,7 +220,7 @@ export default function Dashboard() {
     if (scanPollRef.current) clearInterval(scanPollRef.current)
     scanPollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API}/ingest/status/`)
+        const res = await fetch(`${API}/ingest/status/?user_id=${userId || ''}`)
         const data = await res.json()
         setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
         if (!data.scanning) {
