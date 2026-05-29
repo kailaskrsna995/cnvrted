@@ -408,21 +408,6 @@ export default function Dashboard() {
       </div>
 
       {/* ── Modals ── */}
-      {profileOpen && (
-        <ProfileModal
-          userName={userName}
-          savedLeadIds={savedLeadIds}
-          onClose={() => setProfileOpen(false)}
-          onLogout={() => {
-            localStorage.clear()
-            setUserId(null)
-            setUserName('')
-            setProfileOpen(false)
-            setPreferencesSet(null)
-            setLeads([])
-          }}
-        />
-      )}
       {previewLead && (
         <PostPreviewModal lead={previewLead} onClose={() => setPreviewLead(null)} />
       )}
@@ -466,15 +451,41 @@ export default function Dashboard() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
               {leads.length > 0 && <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-indigo-500 rounded-full" />}
             </button>
-            <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 hover:opacity-80 transition">
-              <div className="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-semibold">
-                {firstName[0]?.toUpperCase() || 'U'}
-              </div>
-              <div className="hidden md:block text-left">
-                <p className="text-[12px] font-medium text-white leading-tight">{firstName}</p>
-                <p className="text-[10px] text-gray-500 leading-tight">Early Access</p>
-              </div>
-            </button>
+            <div className="relative">
+              <button onClick={() => setProfileOpen(p => !p)} className="flex items-center gap-2 hover:opacity-80 transition">
+                <div className="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-semibold">
+                  {firstName[0]?.toUpperCase() || 'U'}
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-[12px] font-medium text-white leading-tight">{firstName}</p>
+                  <p className="text-[10px] text-gray-500 leading-tight">Early Access</p>
+                </div>
+              </button>
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 z-50 bg-[#0e0e14] border border-white/10 rounded-xl shadow-2xl p-1 w-44">
+                    <div className="px-3 py-2 border-b border-white/5 mb-1">
+                      <p className="text-[12px] font-medium text-white">{firstName}</p>
+                      <p className="text-[10px] text-gray-500">Early Access</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        localStorage.clear()
+                        setUserId(null)
+                        setUserName('')
+                        setProfileOpen(false)
+                        setPreferencesSet(null)
+                        setLeads([])
+                      }}
+                      className="w-full text-left px-3 py-2 text-[12px] text-red-400 hover:text-red-300 hover:bg-white/5 rounded-lg transition"
+                    >
+                      Log out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
