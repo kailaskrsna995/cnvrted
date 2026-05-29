@@ -131,9 +131,12 @@ SELLER_SIGNALS = [
     "we specialize in", "i offer",
     "check out my", "here's how i", "i helped a client",
     "book a call", "schedule a call", "free consultation", "link in bio",
-    "i specialize in", "our team offers",
-    "my services", "we offer", "hire us",
+    "i specialize in",
+    "my services", "hire us",
     "contact us today",
+    # NOTE: "we offer" / "our team offers" removed — they collide with company
+    # hiring posts ("we offer competitive pay/benefits"), which are now leads.
+    # Genuine sellers are still caught by the LLM scorer's bucket A.
     # Seller launch / self-promotion patterns
     "officially open", "now open for", "open for clients", "open for projects",
     "available for hire", "available for projects", "available for freelance",
