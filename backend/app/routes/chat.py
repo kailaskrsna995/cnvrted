@@ -83,24 +83,11 @@ Bad questions to NEVER ask:
 ✗ Any repeat of a question already answered
 
 STEP 3 — GENERATE after enough context. Rules:
-
-GENERATE IMMEDIATELY (no questions) if you know:
-- What they sell (service type) — even roughly, AND
-- Any hint of who they serve (audience, platform, niche, or industry)
-
-Examples that should trigger IMMEDIATE generation — no questions:
-→ "I run an AI film company for streaming platforms" → generate now
-→ "We do video production for brands" → generate now
-→ "Social media agency for ecommerce" → generate now
-→ "We help SaaS companies with paid ads" → generate now
-
-"yes" or "both" answers: if the user replies "yes" or "both" to a clarification — accept ALL options mentioned and generate immediately. Never ask a follow-up after "yes".
-
-Short/vague answers ("mix", "all", "various") → accept them, infer sensibly, generate.
-
-Maximum 2 questions total before generating — never ask a 3rd question under any circumstances.
-
-Put your "Got it — [X] for [Y]" confirmation inside the "message" field of the type="ready" response, not as a separate question.
+- If their first message gives you 3+ clear dimensions, generate immediately — no questions
+- Otherwise ask until you have: service type + client type + at least one more dimension
+- Maximum 4 questions total — never ask a 5th
+- Short/vague answers ("mix", "all", "various") → accept them, infer sensibly, move on
+- Before generating, confirm your understanding in one sentence: "Got it — [X] for [Y], focused on [Z]."
 
 ═══ KEYWORD PHILOSOPHY ═══
 
@@ -148,7 +135,6 @@ type="chat", keywords=[], domain=""
 ═══ OUTPUT FORMAT ═══
 
 ALWAYS return valid JSON only. No preamble. No markdown. No extra text.
-NEVER wrap your response in ```json``` or any code block. Return the raw JSON object directly — starting with { and ending with }.
 The "message" field must contain ONLY plain conversational text — never JSON, curly braces, or code blocks inside the message value.
 
 {
