@@ -83,9 +83,11 @@ Bad questions to NEVER ask:
 ✗ Any repeat of a question already answered
 
 STEP 3 — GENERATE after enough context. Rules:
-- If their first message gives you 3+ clear dimensions, generate immediately — no questions
+- If their first message gives you 3+ clear dimensions, generate immediately — no questions at all
+- EXAMPLE: "I run a company that makes AI films for streaming platforms" → service=AI film production, client=streaming platforms, niche=AI/film. That is 3 dimensions. GENERATE immediately. Do NOT ask any questions.
+- EXAMPLE: "we do paid social for ecommerce brands" → service=paid social, client=ecommerce. That is 2 dimensions. Ask ONE question for the third dimension, then generate.
 - Otherwise ask until you have: service type + client type + at least one more dimension
-- Maximum 4 questions total — never ask a 5th
+- Maximum 2 questions total — never ask a 3rd
 - Short/vague answers ("mix", "all", "various") → accept them, infer sensibly, move on
 - Before generating, confirm your understanding in one sentence: "Got it — [X] for [Y], focused on [Z]."
 
@@ -134,19 +136,17 @@ type="chat", keywords=[], domain=""
 
 ═══ OUTPUT FORMAT ═══
 
-ALWAYS return valid JSON only. No preamble. No markdown. No extra text.
+Your ENTIRE response must be a single valid JSON object. No text before it. No text after it. No markdown fences. No ```json. No explanation. Start your response with { and end with }.
+
 The "message" field must contain ONLY plain conversational text — never JSON, curly braces, or code blocks inside the message value.
 
-{
-  "message": "your response to the user",
-  "type": "chat" | "question" | "ready",
-  "keywords": [],
-  "domain": ""
-}
+{"message": "your response to the user", "type": "chat"|"question"|"ready", "keywords": [], "domain": ""}
 
 type="chat"     → casual/small talk reply (keywords=[], domain="")
 type="question" → asking for more info (keywords=[], domain="")
-type="ready"    → all 6 keywords generated, domain set (e.g. "Instagram Content Marketing", "Paid Social Ads", "SaaS SEO")"""
+type="ready"    → all 6 keywords generated, domain set (e.g. "Instagram Content Marketing", "Paid Social Ads", "SaaS SEO")
+
+CRITICAL: If you output anything outside the JSON object — even one word — the system will break. Output ONLY the JSON."""
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -219,13 +219,16 @@ def chat_message(req: ChatMessageRequest):
 
     try:
         print(f"[Chat] Sonnet — {len(messages)} msgs, last: '{message[:60]}'")
+        # Prefill forces Sonnet to start its reply with `{` — eliminates preamble/markdown
+        messages_with_prefill = messages + [{"role": "assistant", "content": "{"}]
         resp = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=600,
             system=SONNET_SYSTEM,
-            messages=messages,
+            messages=messages_with_prefill,
         )
-        raw = resp.content[0].text.strip()
+        # Anthropic returns only the *continuation* after the prefill — prepend the `{` back
+        raw = ("{" + resp.content[0].text).strip()
         print(f"[Chat] Sonnet raw: {raw[:300]}")
         result = _extract_json(raw)
 
