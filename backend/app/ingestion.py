@@ -141,7 +141,7 @@ SELLER_SIGNALS = [
     "officially open", "now open for", "open for clients", "open for projects",
     "available for hire", "available for projects", "available for freelance",
     "dm for paid", "dm for orders", "dms open for",
-    "portfolio:", "my portfolio", "my rates", "pricing:", "starting at $", "starting from $",
+    "portfolio:", "my portfolio", "my rates", "pricing:", "starting from $",
     "freelance services", "editing services",
     "excited to launch", "excited to announce", "just launched my",
     "service promo", "promo post",
@@ -538,7 +538,7 @@ def _process_posts(posts: list, category: str, user_id: Optional[str], user_serv
                 try:
                     from datetime import datetime as _dt3
                     age_days = (_dt3.utcnow() - _dt3.fromisoformat(posted_at)).days
-                    if age_days > 30:
+                    if age_days > 60:
                         print(f"[Filter] LinkedIn post too old ({age_days}d): {text[:60]}")
                         continue
                 except Exception:

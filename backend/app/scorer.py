@@ -94,7 +94,7 @@ Bad: "Interested in AI automation."
 
 Other fields:
 - category: use hint if provided, else infer (e.g. "AI Automation", "Marketing", "Aerospace & Defense")
-- qualified: true only if intent_score >= 15
+- qualified: true only if intent_score >= 10
 - domain: author's industry (e.g. "SaaS", "E-commerce") or ""
 - contact_email: extract from post or ""
 - contact_phone: extract from post or ""
