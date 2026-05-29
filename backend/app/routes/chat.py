@@ -20,7 +20,28 @@ def _extract_json(raw: str) -> dict:
     try:
         return json.loads(raw[start:end + 1])
     except Exception:
+        pass
+    # Second attempt: strip control characters that break json.loads
+    try:
+        import re
+        cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', raw[start:end + 1])
+        return json.loads(cleaned)
+    except Exception:
         return {}
+
+
+def _clean_message(text: str) -> str:
+    """Strip any JSON that leaked into a message string (e.g. Sonnet added
+    a preamble before the JSON block, causing json.loads to fail and the
+    whole raw output to be returned as the message)."""
+    if not text:
+        return text
+    # Cut at first bare newline-brace sequence — that's where JSON starts
+    for marker in ('\n{', '\n```'):
+        idx = text.find(marker)
+        if idx != -1:
+            text = text[:idx]
+    return text.strip()
 
 
 # ── Prompt ────────────────────────────────────────────────────────────────────
@@ -117,6 +138,7 @@ type="chat", keywords=[], domain=""
 ═══ OUTPUT FORMAT ═══
 
 ALWAYS return valid JSON only. No preamble. No markdown. No extra text.
+The "message" field must contain ONLY plain conversational text — never JSON, curly braces, or code blocks inside the message value.
 
 {
   "message": "your response to the user",
@@ -211,16 +233,17 @@ def chat_message(req: ChatMessageRequest):
         result = _extract_json(raw)
 
         if not result:
-            # Non-JSON response — use raw text as the message
+            # Non-JSON or malformed JSON — extract just the text before any JSON block
+            fallback = _clean_message(raw[:500]) if raw else ""
             return {
-                "message": raw[:400] if raw else "What does your agency specialise in?",
+                "message": fallback or "What does your agency specialise in?",
                 "type": "question",
                 "keywords": [],
                 "domain": "",
             }
 
         return {
-            "message": result.get("message") or "What does your agency specialise in?",
+            "message": _clean_message(result.get("message") or "What does your agency specialise in?"),
             "type": result.get("type", "question"),
             "keywords": result.get("keywords", []),
             "domain": result.get("domain", ""),
