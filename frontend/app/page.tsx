@@ -164,6 +164,7 @@ export default function Dashboard() {
     const email = localStorage.getItem('cnvrted_username') || ''
     if (id) {
       setUserId(id)
+      setPreferencesSet(true)   // optimistic — fetchUser overrides only on 404
       if (name) setUserName(name)
       if (email) setUserEmail(email)
       fetchUser(id)
