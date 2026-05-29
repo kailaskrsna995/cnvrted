@@ -357,14 +357,17 @@ def _make_reddit_search_query(keyword: str) -> str:
             lower = keyword.lower()
             break
 
-    # Keep at most 5 words; drop common stop-words if longer
+    # Keep at most 3 words — Reddit tokenises queries, so 4-5 specific words
+    # often return 0 posts. 2-3 focused nouns hit enough posts while staying
+    # on-topic. The LLM scorer handles relevance from there.
     words = keyword.split()
-    if len(words) > 5:
-        _STOP = {"for", "and", "or", "the", "a", "an", "to", "of", "our",
-                 "with", "in", "on", "at", "by", "from", "us", "we", "create"}
-        words = [w for w in words if w.lower() not in _STOP][:5]
-
-    return " ".join(words).strip() or keyword.split()[0]
+    _STOP = {"for", "and", "or", "the", "a", "an", "to", "of", "our",
+             "with", "in", "on", "at", "by", "from", "us", "we", "create",
+             "both", "all", "any", "my", "your", "their", "its"}
+    clean = [w for w in words if w.lower() not in _STOP]
+    # Take the first 3 meaningful words
+    result = " ".join(clean[:3]).strip()
+    return result or keyword.split()[0]
 
 
 def _is_english(text: str) -> bool:
@@ -642,10 +645,10 @@ async def fetch_reddit_results(client: httpx.AsyncClient, keyword: str) -> list:
     # Short topic-noun queries ("video ad agency Meta TikTok") return on-topic posts.
     search_query = _make_reddit_search_query(keyword)
     print(f"[Reddit] query='{search_query}' (from keyword: '{keyword[:60]}')")
-    # Restrict to buyer-intent subreddits; t=month gives more results than t=week
+    # Restrict to buyer-intent subreddits; t=year gives more results than t=month
     search_url = (
         f"https://www.reddit.com/r/{BUYER_SUBREDDITS}/search/"
-        f"?q={quote(search_query)}&sort=new&t=month&restrict_sr=1&type=link"
+        f"?q={quote(search_query)}&sort=new&t=year&restrict_sr=1&type=link"
     )
     raw_items = await _run_apify_actor(client, REDDIT_ACTOR, {
         "startUrls": [{"url": search_url}],
