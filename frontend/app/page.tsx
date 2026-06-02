@@ -496,7 +496,7 @@ export default function Dashboard() {
           {!scanning && lastScanParams && (
             <div className="shrink-0 px-6 py-2 border-b border-white/5 flex items-center gap-3">
               {scanStats.total_scanned > 0 && scanStats.total_saved === 0 && (
-                <span className="text-[11px] text-gray-400">Oops, we couldn't find any leads this time.</span>
+                <span className="text-[11px] text-gray-400">No buyers surfaced this time. They're out there, just not posting today.</span>
               )}
               {scanStats.total_scanned > 0 && scanStats.total_saved > 0 && (
                 <span className="text-[10px] text-emerald-500">✓ {scanStats.total_saved} leads from {scanStats.total_scanned} posts</span>
