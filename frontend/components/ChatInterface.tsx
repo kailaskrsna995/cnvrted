@@ -38,6 +38,7 @@ export function ChatInterface({
   setSearchQuery,
   sendChat,
   triggerIngest,
+  scanning,
   stats,
   recentLeads,
   compact,
@@ -51,6 +52,7 @@ export function ChatInterface({
   setSearchQuery: (q: string) => void
   sendChat: () => void
   triggerIngest: (params: { domain: string; keywords: string[] }) => void
+  scanning?: boolean
   stats?: ChatStats
   recentLeads?: Lead[]
   compact?: boolean

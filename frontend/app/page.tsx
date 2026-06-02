@@ -103,6 +103,10 @@ export default function Dashboard() {
   const [userPosition, setUserPosition] = useState('')
   const [ready, setReady] = useState(false)
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
+  const [showTransition, setShowTransition] = useState(false)
+  const [transitionFading, setTransitionFading] = useState(false)
+  const [showSplash, setShowSplash] = useState(true)
+  const [splashFading, setSplashFading] = useState(false)
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
 
   // ── Leads & stats ─────────────────────────────────────────────────────────
@@ -111,7 +115,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Record<string, number>>({})
   const [savedLeadIds, setSavedLeadIds] = useState<Set<string>>(new Set())
   const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0, indiehackers: 0 })
-  const [scanStats, setScanStats] = useState<ScanStats>({ total_scanned: 0, total_rejected: 0, total_saved: 0 })
+  const [scanStats, setScanStats] = useState<ScanStats>({ total_scanned: 0, total_rejected: 0, total_saved: 0, linkedin_scanned: 0, twitter_scanned: 0 })
 
   // ── Scan state ────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false)
@@ -178,7 +182,7 @@ export default function Dashboard() {
     fetch(`${API}/ingest/status/?user_id=${userId}`)
       .then(r => r.json())
       .then(data => {
-        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
+        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved, linkedin_scanned: data.linkedin_scanned || 0, twitter_scanned: data.twitter_scanned || 0 })
         if (data.scanning) { setScanning(true); startPolling() }
       })
       .catch(() => {})
@@ -222,7 +226,7 @@ export default function Dashboard() {
       try {
         const res = await fetch(`${API}/ingest/status/?user_id=${userId || ''}`)
         const data = await res.json()
-        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
+        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved, linkedin_scanned: data.linkedin_scanned || 0, twitter_scanned: data.twitter_scanned || 0 })
         if (!data.scanning) {
           setScanning(false)
           clearInterval(scanPollRef.current!)
@@ -378,6 +382,25 @@ export default function Dashboard() {
     }
   }
 
+  // ── Splash on every page load ─────────────────────────────────────────────
+  if (showSplash) {
+    return (
+      <div className={`fixed inset-0 z-[200] bg-[#030308] flex items-center justify-center transition-opacity duration-700 ${splashFading ? 'opacity-0' : 'opacity-100'}`}>
+        <video
+          src="/logo_code.mp4"
+          className="w-screen h-screen object-cover"
+          autoPlay
+          muted
+          playsInline
+          onEnded={() => {
+            setSplashFading(true)
+            setTimeout(() => setShowSplash(false), 700)
+          }}
+        />
+      </div>
+    )
+  }
+
   // ── Auth gates ────────────────────────────────────────────────────────────
   if (!ready) return null
 
@@ -385,10 +408,13 @@ export default function Dashboard() {
     return (
       <OnboardingScreen
         onComplete={(id, name, _status) => {
-          setUserId(id)
-          setUserName(name)
-          fetchSaved(id)
-          setPreferencesSet(true)
+          setShowTransition(true)
+          setTimeout(() => {
+            setUserId(id)
+            setUserName(name)
+            fetchSaved(id)
+            setPreferencesSet(true)
+          }, 100)
         }}
       />
     )
@@ -400,6 +426,23 @@ export default function Dashboard() {
   // ── Main dashboard ────────────────────────────────────────────────────────
   return (
     <div className="h-screen flex bg-[#030308] overflow-hidden relative">
+
+      {/* Post-login transition animation */}
+      {showTransition && (
+        <div className={`fixed inset-0 z-[100] bg-[#030308] flex items-center justify-center transition-opacity duration-700 ${transitionFading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <video
+            src="/logo_code.mp4"
+            className="w-screen h-screen object-cover"
+            autoPlay
+            muted
+            playsInline
+            onEnded={() => {
+              setTransitionFading(true)
+              setTimeout(() => setShowTransition(false), 700)
+            }}
+          />
+        </div>
+      )}
 
       {/* Wave background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -505,7 +548,7 @@ export default function Dashboard() {
                 <button onClick={() => triggerIngest(lastScanParams!)} disabled={scanning || loading || cooldownRemaining > 0} className="text-[11px] text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40">
                   {cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : 'Rerun ↺'}
                 </button>
-                <button onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0 }) }} className="text-[11px] text-gray-500 hover:text-gray-300 transition">
+                <button onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0, linkedin_scanned: 0, twitter_scanned: 0 }) }} className="text-[11px] text-gray-500 hover:text-gray-300 transition">
                   New search
                 </button>
               </div>
@@ -521,6 +564,7 @@ export default function Dashboard() {
             setSearchQuery={setSearchQuery}
             sendChat={sendChat}
             triggerIngest={triggerIngest}
+            scanning={scanning}
             compact={true}
             scanning={scanning}
             scanStats={{ total_scanned: scanStats.total_scanned, total_saved: scanStats.total_saved }}
@@ -552,6 +596,8 @@ export default function Dashboard() {
         toggleSave={toggleSave}
         setPreviewLead={setPreviewLead}
         category={category}
+        scanning={scanning}
+        scanStats={scanStats}
       />
 
       {/* Mobile FAB — open lead feed */}

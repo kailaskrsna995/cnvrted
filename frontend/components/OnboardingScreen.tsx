@@ -38,7 +38,6 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
 
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
-
   const strength = getStrength(password)
 
   const iCls = 'w-full bg-[#0a0a0f] border border-white/5 rounded-xl px-4 py-3.5 text-white text-[13px] placeholder:text-gray-600 focus:border-indigo-500/50 outline-none transition-colors'
@@ -106,6 +105,7 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
 
   return (
     <div className="min-h-screen bg-[#030308] relative overflow-hidden flex items-center justify-center p-6 font-sans">
+
       <video src="/bg-video.mp4" className="absolute inset-0 w-full h-full object-cover opacity-70 mix-blend-screen pointer-events-none z-0" autoPlay loop muted playsInline />
       <div className="absolute top-0 right-0 w-[1000px] h-[800px] bg-indigo-600/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px] translate-y-1/3 -translate-x-1/4 pointer-events-none" />
