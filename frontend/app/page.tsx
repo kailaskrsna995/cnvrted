@@ -103,6 +103,8 @@ export default function Dashboard() {
   const [userPosition, setUserPosition] = useState('')
   const [ready, setReady] = useState(false)
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
+  const [showTransition, setShowTransition] = useState(false)
+  const [transitionFading, setTransitionFading] = useState(false)
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
 
   // ── Leads & stats ─────────────────────────────────────────────────────────
@@ -385,10 +387,13 @@ export default function Dashboard() {
     return (
       <OnboardingScreen
         onComplete={(id, name, _status) => {
-          setUserId(id)
-          setUserName(name)
-          fetchSaved(id)
-          setPreferencesSet(true)
+          setShowTransition(true)
+          setTimeout(() => {
+            setUserId(id)
+            setUserName(name)
+            fetchSaved(id)
+            setPreferencesSet(true)
+          }, 100)
         }}
       />
     )
@@ -400,6 +405,23 @@ export default function Dashboard() {
   // ── Main dashboard ────────────────────────────────────────────────────────
   return (
     <div className="h-screen flex bg-[#030308] overflow-hidden relative">
+
+      {/* Post-login transition animation */}
+      {showTransition && (
+        <div className={`fixed inset-0 z-[100] bg-[#030308] flex items-center justify-center transition-opacity duration-700 ${transitionFading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <video
+            src="/logo_code.mp4"
+            className="w-screen h-screen object-cover"
+            autoPlay
+            muted
+            playsInline
+            onEnded={() => {
+              setTransitionFading(true)
+              setTimeout(() => setShowTransition(false), 700)
+            }}
+          />
+        </div>
+      )}
 
       {/* Wave background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
