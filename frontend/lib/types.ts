@@ -28,4 +28,6 @@ export type ScanStats = {
   total_scanned: number
   total_rejected: number
   total_saved: number
+  linkedin_scanned: number
+  twitter_scanned: number
 }

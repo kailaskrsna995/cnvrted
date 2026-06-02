@@ -16,7 +16,9 @@ _scan_in_progress = False
 # Per-user scan stats, keyed by user_id. Without this, a new user sees the
 # previous scanner's "Posts Scanned" count leak onto their dashboard.
 _last_scan_stats: dict = {}
-_EMPTY_STATS = {"total_scanned": 0, "total_rejected": 0, "total_saved": 0}
+_EMPTY_STATS = {"total_scanned": 0, "total_rejected": 0, "total_saved": 0, "linkedin_scanned": 0, "twitter_scanned": 0}
+# Live progress updated by ingestion as it runs
+_live_progress: dict = {}
 
 
 class IngestRequest(BaseModel):
@@ -38,8 +40,12 @@ MOCK_POSTS = [
 
 @router.get("/status/")
 def scan_status(user_id: Optional[str] = Query(default=None)):
-    stats = _last_scan_stats.get(user_id or "", _EMPTY_STATS)
-    return {"scanning": _scan_in_progress, **stats}
+    key = user_id or ""
+    if _scan_in_progress:
+        progress = _live_progress.get(key, _EMPTY_STATS)
+        return {"scanning": True, **progress}
+    stats = _last_scan_stats.get(key, _EMPTY_STATS)
+    return {"scanning": False, **stats}
 
 @router.post("/stop/")
 def stop_scan():
@@ -222,12 +228,14 @@ async def debug_scrape(
 
 async def _run_and_unlock(keywords, domain, user_id, service=None):
     global _scan_in_progress
+    key = user_id or ""
+    _live_progress[key] = {"total_scanned": 0, "total_rejected": 0, "total_saved": 0, "linkedin_scanned": 0, "twitter_scanned": 0}
     try:
-        stats = await run_ingestion(keywords, domain, user_id, service_override=service)
-        # Scope stats to the user who triggered the scan
-        _last_scan_stats[user_id or ""] = stats
+        stats = await run_ingestion(keywords, domain, user_id, service_override=service, live_progress=_live_progress.get(key))
+        _last_scan_stats[key] = stats
     finally:
         _scan_in_progress = False
+        _live_progress.pop(key, None)
 
 @router.post("/")
 async def trigger_ingestion(

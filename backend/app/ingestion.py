@@ -893,6 +893,7 @@ async def run_ingestion(
     domain: Optional[str] = None,
     user_id: Optional[str] = None,
     service_override: Optional[str] = None,
+    live_progress: Optional[dict] = None,
 ):
     # Fetch user context for outreach personalisation
     user_service = ""
@@ -983,6 +984,11 @@ async def run_ingestion(
             )
             results.extend(saved)
             total_scanned += scanned
+            if live_progress is not None:
+                live_progress["linkedin_scanned"] = live_progress.get("linkedin_scanned", 0) + scanned
+                live_progress["total_scanned"] = total_scanned
+                live_progress["total_saved"] = len(results)
+                live_progress["total_rejected"] = total_scanned - len(results)
 
         # LinkedIn (Google/Serper) — already searched with buyer phrases, skip phrase gate
         for (category, keyword), posts in zip(keyword_map, google_results):
@@ -997,6 +1003,11 @@ async def run_ingestion(
             )
             results.extend(saved)
             total_scanned += scanned
+            if live_progress is not None:
+                live_progress["linkedin_scanned"] = live_progress.get("linkedin_scanned", 0) + scanned
+                live_progress["total_scanned"] = total_scanned
+                live_progress["total_saved"] = len(results)
+                live_progress["total_rejected"] = total_scanned - len(results)
 
         # Twitter — LLM scored, capped at TWITTER_CAP to control cost
         twitter_posts_all = []
@@ -1029,6 +1040,11 @@ async def run_ingestion(
             )
             results.extend(saved)
             total_scanned += scanned
+            if live_progress is not None:
+                live_progress["twitter_scanned"] = live_progress.get("twitter_scanned", 0) + scanned
+                live_progress["total_scanned"] = total_scanned
+                live_progress["total_saved"] = len(results)
+                live_progress["total_rejected"] = total_scanned - len(results)
             print(f"[Twitter] saved={len(saved)} from {scanned} scanned (cap={TWITTER_CAP})")
 
     total_saved = len(results)

@@ -111,7 +111,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Record<string, number>>({})
   const [savedLeadIds, setSavedLeadIds] = useState<Set<string>>(new Set())
   const [allLeadStats, setAllLeadStats] = useState({ total: 0, qualified: 0, urgent: 0, linkedin: 0, twitter: 0, reddit: 0, indiehackers: 0 })
-  const [scanStats, setScanStats] = useState<ScanStats>({ total_scanned: 0, total_rejected: 0, total_saved: 0 })
+  const [scanStats, setScanStats] = useState<ScanStats>({ total_scanned: 0, total_rejected: 0, total_saved: 0, linkedin_scanned: 0, twitter_scanned: 0 })
 
   // ── Scan state ────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false)
@@ -178,7 +178,7 @@ export default function Dashboard() {
     fetch(`${API}/ingest/status/?user_id=${userId}`)
       .then(r => r.json())
       .then(data => {
-        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
+        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved, linkedin_scanned: data.linkedin_scanned || 0, twitter_scanned: data.twitter_scanned || 0 })
         if (data.scanning) { setScanning(true); startPolling() }
       })
       .catch(() => {})
@@ -222,7 +222,7 @@ export default function Dashboard() {
       try {
         const res = await fetch(`${API}/ingest/status/?user_id=${userId || ''}`)
         const data = await res.json()
-        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved })
+        setScanStats({ total_scanned: data.total_scanned, total_rejected: data.total_rejected, total_saved: data.total_saved, linkedin_scanned: data.linkedin_scanned || 0, twitter_scanned: data.twitter_scanned || 0 })
         if (!data.scanning) {
           setScanning(false)
           clearInterval(scanPollRef.current!)
@@ -502,7 +502,7 @@ export default function Dashboard() {
                 <button onClick={() => triggerIngest(lastScanParams!)} disabled={scanning || loading || cooldownRemaining > 0} className="text-[11px] text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40">
                   {cooldownRemaining > 0 ? `⏱ ${formatCountdown(cooldownRemaining)}` : 'Rerun ↺'}
                 </button>
-                <button onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0 }) }} className="text-[11px] text-gray-500 hover:text-gray-300 transition">
+                <button onClick={() => { setLastScanParams(null); setChatMessages([]); setScanStats({ total_scanned: 0, total_rejected: 0, total_saved: 0, linkedin_scanned: 0, twitter_scanned: 0 }) }} className="text-[11px] text-gray-500 hover:text-gray-300 transition">
                   New search
                 </button>
               </div>
@@ -549,6 +549,7 @@ export default function Dashboard() {
         setPreviewLead={setPreviewLead}
         category={category}
         scanning={scanning}
+        scanStats={scanStats}
       />
 
       {/* Mobile FAB — open lead feed */}
