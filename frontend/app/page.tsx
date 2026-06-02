@@ -105,6 +105,8 @@ export default function Dashboard() {
   const [preferencesSet, setPreferencesSet] = useState<boolean | null>(null)
   const [showTransition, setShowTransition] = useState(false)
   const [transitionFading, setTransitionFading] = useState(false)
+  const [showSplash, setShowSplash] = useState(true)
+  const [splashFading, setSplashFading] = useState(false)
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
 
   // ── Leads & stats ─────────────────────────────────────────────────────────
@@ -378,6 +380,25 @@ export default function Dashboard() {
         return s
       })
     }
+  }
+
+  // ── Splash on every page load ─────────────────────────────────────────────
+  if (showSplash) {
+    return (
+      <div className={`fixed inset-0 z-[200] bg-[#030308] flex items-center justify-center transition-opacity duration-700 ${splashFading ? 'opacity-0' : 'opacity-100'}`}>
+        <video
+          src="/logo_code.mp4"
+          className="w-screen h-screen object-cover"
+          autoPlay
+          muted
+          playsInline
+          onEnded={() => {
+            setSplashFading(true)
+            setTimeout(() => setShowSplash(false), 700)
+          }}
+        />
+      </div>
+    )
   }
 
   // ── Auth gates ────────────────────────────────────────────────────────────
