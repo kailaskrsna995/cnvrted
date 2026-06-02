@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -38,6 +38,9 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
 
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
+  const [showSplash, setShowSplash] = useState(true)
+  const [splashFading, setSplashFading] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const strength = getStrength(password)
 
@@ -106,6 +109,25 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
 
   return (
     <div className="min-h-screen bg-[#030308] relative overflow-hidden flex items-center justify-center p-6 font-sans">
+
+      {/* ── Splash / intro video ── */}
+      {showSplash && (
+        <div className={`fixed inset-0 z-50 bg-[#030308] flex items-center justify-center transition-opacity duration-700 ${splashFading ? 'opacity-0' : 'opacity-100'}`}>
+          <video
+            ref={videoRef}
+            src="/logo_code.mp4"
+            className="w-64 h-64 object-contain"
+            autoPlay
+            muted
+            playsInline
+            onEnded={() => {
+              setSplashFading(true)
+              setTimeout(() => setShowSplash(false), 700)
+            }}
+          />
+        </div>
+      )}
+
       <video src="/bg-video.mp4" className="absolute inset-0 w-full h-full object-cover opacity-70 mix-blend-screen pointer-events-none z-0" autoPlay loop muted playsInline />
       <div className="absolute top-0 right-0 w-[1000px] h-[800px] bg-indigo-600/10 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px] translate-y-1/3 -translate-x-1/4 pointer-events-none" />
