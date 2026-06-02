@@ -518,6 +518,7 @@ export default function Dashboard() {
             setSearchQuery={setSearchQuery}
             sendChat={sendChat}
             triggerIngest={triggerIngest}
+            scanning={scanning}
             compact={true}
             stats={{
               total: allLeadStats.total,
@@ -547,6 +548,7 @@ export default function Dashboard() {
         toggleSave={toggleSave}
         setPreviewLead={setPreviewLead}
         category={category}
+        scanning={scanning}
       />
 
       {/* Mobile FAB — open lead feed */}

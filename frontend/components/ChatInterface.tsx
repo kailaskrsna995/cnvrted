@@ -38,6 +38,7 @@ export function ChatInterface({
   setSearchQuery,
   sendChat,
   triggerIngest,
+  scanning,
   stats,
   recentLeads,
   compact,
@@ -49,6 +50,7 @@ export function ChatInterface({
   setSearchQuery: (q: string) => void
   sendChat: () => void
   triggerIngest: (params: { domain: string; keywords: string[] }) => void
+  scanning?: boolean
   stats?: ChatStats
   recentLeads?: Lead[]
   compact?: boolean
@@ -206,10 +208,11 @@ export function ChatInterface({
                     </ul>
                     <button
                       onClick={() => triggerIngest(msg.scanParams!)}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium px-4 py-2 rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.2)]"
+                      disabled={scanning}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium px-4 py-2 rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.2)] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                      Find leads for this
+                      {scanning ? 'Scanning…' : 'Find leads for this'}
                     </button>
                   </div>
                 )}
