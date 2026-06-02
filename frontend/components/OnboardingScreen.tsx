@@ -116,7 +116,7 @@ export function OnboardingScreen({ onComplete }: { onComplete: (userId: string, 
           <video
             ref={videoRef}
             src="/logo_code.mp4"
-            className="w-[500px] h-[500px] object-contain"
+            className="w-screen h-screen object-cover"
             autoPlay
             muted
             playsInline
