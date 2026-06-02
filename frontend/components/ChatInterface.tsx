@@ -42,7 +42,6 @@ export function ChatInterface({
   stats,
   recentLeads,
   compact,
-  scanning,
   scanStats,
 }: {
   chatMessages: ChatMsg[]
@@ -56,8 +55,7 @@ export function ChatInterface({
   stats?: ChatStats
   recentLeads?: Lead[]
   compact?: boolean
-  scanning?: boolean
-  scanStats?: { total_scanned: number; total_saved: number }
+  scanStats?: { total_scanned: number; total_saved: number; linkedin_scanned?: number; twitter_scanned?: number }
 }) {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
@@ -270,9 +268,15 @@ export function ChatInterface({
               <span className="font-semibold tabular-nums text-white">
                 {scanStats?.total_scanned ?? 0}
               </span>{' '}
-              posts through LinkedIn &amp; Twitter
+              posts
+              {(scanStats?.linkedin_scanned ?? 0) > 0 && (
+                <span className="text-gray-400"> · {scanStats!.linkedin_scanned} LinkedIn</span>
+              )}
+              {(scanStats?.twitter_scanned ?? 0) > 0 && (
+                <span className="text-gray-400"> · {scanStats!.twitter_scanned} Twitter</span>
+              )}
               {(scanStats?.total_saved ?? 0) > 0 && (
-                <span className="text-emerald-400 ml-2">
+                <span className="text-emerald-400 ml-1">
                   · {scanStats!.total_saved} lead{scanStats!.total_saved !== 1 ? 's' : ''} found
                 </span>
               )}

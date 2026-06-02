@@ -567,7 +567,7 @@ export default function Dashboard() {
             scanning={scanning}
             compact={true}
             scanning={scanning}
-            scanStats={{ total_scanned: scanStats.total_scanned, total_saved: scanStats.total_saved }}
+            scanStats={{ total_scanned: scanStats.total_scanned, total_saved: scanStats.total_saved, linkedin_scanned: scanStats.linkedin_scanned, twitter_scanned: scanStats.twitter_scanned }}
             stats={{
               total: allLeadStats.total,
               qualified: allLeadStats.qualified,
