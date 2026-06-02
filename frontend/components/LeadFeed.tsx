@@ -96,46 +96,46 @@ export function LeadFeed({
               exit={{ opacity: 0 }}
               className="mb-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-5 flex flex-col items-center gap-4"
             >
-              <div className="flex items-center gap-6">
-                {/* LinkedIn logo */}
-                <motion.div
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  className="flex flex-col items-center gap-1.5"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#0A66C2]/15 flex items-center justify-center">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                  </div>
-                  <span className="text-[9px] text-[#0A66C2] font-medium">LinkedIn</span>
-                  <span className="text-[13px] font-semibold text-white tabular-nums">{scanStats?.linkedin_scanned ?? 0}</span>
-                  <span className="text-[9px] text-gray-500">posts scraped</span>
-                </motion.div>
+              <div className="flex items-center gap-8">
+                {/* LinkedIn */}
+                <div className="flex flex-col items-center gap-2">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-12 h-12 rounded-xl bg-[#0A66C2]/15 flex items-center justify-center"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                  </motion.div>
+                  <span className="text-[10px] text-[#0A66C2] font-semibold">LinkedIn</span>
+                  <span className="text-[18px] font-bold text-white tabular-nums leading-none">{scanStats?.linkedin_scanned ?? 0}</span>
+                  <span className="text-[10px] text-gray-400">posts scraped</span>
+                </div>
 
                 {/* Animated dots */}
-                <div className="flex gap-1">
+                <div className="flex gap-1.5 mt-[-10px]">
                   {[0, 1, 2].map(i => (
                     <motion.span
                       key={i}
                       animate={{ opacity: [0.2, 1, 0.2] }}
                       transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                      className="w-1 h-1 rounded-full bg-indigo-400"
+                      className="w-1.5 h-1.5 rounded-full bg-indigo-400"
                     />
                   ))}
                 </div>
 
-                {/* X logo */}
-                <motion.div
-                  animate={{ opacity: [1, 0.3, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  className="flex flex-col items-center gap-1.5"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#e7e9ea"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                  </div>
-                  <span className="text-[9px] text-gray-400 font-medium">X / Twitter</span>
-                  <span className="text-[13px] font-semibold text-white tabular-nums">{scanStats?.twitter_scanned ?? 0}</span>
-                  <span className="text-[9px] text-gray-500">posts scraped</span>
-                </motion.div>
+                {/* X / Twitter */}
+                <div className="flex flex-col items-center gap-2">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                    className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#e7e9ea"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  </motion.div>
+                  <span className="text-[10px] text-gray-300 font-semibold">X / Twitter</span>
+                  <span className="text-[18px] font-bold text-white tabular-nums leading-none">{scanStats?.twitter_scanned ?? 0}</span>
+                  <span className="text-[10px] text-gray-400">posts scraped</span>
+                </div>
               </div>
 
               {/* Scanning text */}
