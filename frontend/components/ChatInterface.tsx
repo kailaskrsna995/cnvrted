@@ -41,6 +41,8 @@ export function ChatInterface({
   stats,
   recentLeads,
   compact,
+  scanning,
+  scanStats,
 }: {
   chatMessages: ChatMsg[]
   chatLoading: boolean
@@ -52,6 +54,8 @@ export function ChatInterface({
   stats?: ChatStats
   recentLeads?: Lead[]
   compact?: boolean
+  scanning?: boolean
+  scanStats?: { total_scanned: number; total_saved: number }
 }) {
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
@@ -206,10 +210,11 @@ export function ChatInterface({
                     </ul>
                     <button
                       onClick={() => triggerIngest(msg.scanParams!)}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium px-4 py-2 rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.2)]"
+                      disabled={scanning}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium px-4 py-2 rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.2)] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                      Find leads for this
+                      {scanning ? 'Scanning…' : 'Find leads for this'}
                     </button>
                   </div>
                 )}
@@ -237,6 +242,42 @@ export function ChatInterface({
         </AnimatePresence>
         <div ref={chatEndRef} />
       </div>
+
+      {/* Scanning indicator — above input, real numbers */}
+      <AnimatePresence>
+        {scanning && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2 }}
+            className="mb-3 px-4 py-3 bg-[#0a0a0f] border border-indigo-500/20 rounded-2xl flex items-center gap-3 shrink-0"
+          >
+            <div className="flex gap-1 shrink-0">
+              {[0, 0.15, 0.3].map((delay, i) => (
+                <motion.span
+                  key={i}
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay }}
+                  className="w-1.5 h-1.5 rounded-full bg-indigo-400"
+                />
+              ))}
+            </div>
+            <p className="text-[12px] text-indigo-300 leading-snug">
+              Scanning{' '}
+              <span className="font-semibold tabular-nums text-white">
+                {scanStats?.total_scanned ?? 0}
+              </span>{' '}
+              posts through LinkedIn &amp; Twitter
+              {(scanStats?.total_saved ?? 0) > 0 && (
+                <span className="text-emerald-400 ml-2">
+                  · {scanStats!.total_saved} lead{scanStats!.total_saved !== 1 ? 's' : ''} found
+                </span>
+              )}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Input */}
       <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-3 shadow-2xl sticky bottom-4 shrink-0">
