@@ -331,7 +331,6 @@ export function LeadFeed({
                           </button>
                         )
                       })()}
-                      )}
                     </div>
                   </motion.div>
                 )
