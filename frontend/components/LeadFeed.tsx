@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Lead, ScanStats } from '../lib/types'
+
+const API = process.env.NEXT_PUBLIC_API_URL
 import { formatRelativeTime } from '../lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { EmptyState } from './EmptyState'
@@ -34,6 +36,8 @@ export function LeadFeed({
   const [likedLeads,     setLikedLeads]     = useState<Set<string>>(new Set())
   const [dislikedLeads,  setDislikedLeads]  = useState<Set<string>>(new Set())
   const [revealedLeads,  setRevealedLeads]  = useState<Set<string>>(new Set())
+  const [loadingLeads,   setLoadingLeads]   = useState<Set<string>>(new Set())
+  const [enrichedData,   setEnrichedData]   = useState<Record<string, { email: string; phone: string; found: boolean }>>({})
 
   const toggleLike = (id: string) => {
     setLikedLeads(prev => {
@@ -48,6 +52,32 @@ export function LeadFeed({
       if (s.has(id)) { s.delete(id) } else { s.add(id); setLikedLeads(d => { const x = new Set(d); x.delete(id); return x }) }
       return s
     })
+  }
+
+  const revealContact = async (lead: Lead) => {
+    const id = lead.lead_id
+    // Already revealed — don't call again
+    if (revealedLeads.has(id)) return
+
+    setLoadingLeads(prev => new Set([...prev, id]))
+    try {
+      const res = await fetch(`${API}/leads/${id}/enrich/`, { method: 'POST' })
+      if (!res.ok) throw new Error('enrich failed')
+      const data = await res.json()
+      setEnrichedData(prev => ({
+        ...prev,
+        [id]: {
+          email: data.contact_email || '',
+          phone: data.contact_phone || '',
+          found: data.found ?? !!(data.contact_email || data.contact_phone),
+        }
+      }))
+    } catch {
+      setEnrichedData(prev => ({ ...prev, [id]: { email: '', phone: '', found: false } }))
+    } finally {
+      setRevealedLeads(prev => new Set([...prev, id]))
+      setLoadingLeads(prev => { const s = new Set(prev); s.delete(id); return s })
+    }
   }
 
   // Hide disliked leads from the feed
@@ -167,9 +197,7 @@ export function LeadFeed({
                 const initials  = (lead.author || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
                 const isHot     = lead.timeline === 'Urgent'
                 const isWarm    = lead.timeline === 'Active'
-                const isLiked   = likedLeads.has(lead.lead_id)
-                const hasContact = !!(lead.contact_email || lead.contact_phone)
-                const isRevealed = revealedLeads.has(lead.lead_id)
+                const isLiked = likedLeads.has(lead.lead_id)
 
                 return (
                   <motion.div
@@ -277,26 +305,32 @@ export function LeadFeed({
                       </div>
 
                       {/* Right: contact reveal */}
-                      {hasContact ? (
-                        isRevealed ? (
-                          <span className="text-[11px] text-emerald-400 font-mono truncate max-w-[160px]">
-                            {lead.contact_email || lead.contact_phone}
-                          </span>
-                        ) : (
+                      {(() => {
+                        const enriched  = enrichedData[lead.lead_id]
+                        const isLoading = loadingLeads.has(lead.lead_id)
+                        const isRevealed = revealedLeads.has(lead.lead_id)
+                        const email     = enriched?.email || lead.contact_email || ''
+                        const phone     = enriched?.phone || lead.contact_phone || ''
+                        const contact   = email || phone
+
+                        if (isLoading) return (
+                          <span className="text-[11px] text-gray-500 animate-pulse">Finding contact…</span>
+                        )
+                        if (isRevealed && contact) return (
+                          <span className="text-[11px] text-emerald-400 font-mono truncate max-w-[160px]">{contact}</span>
+                        )
+                        if (isRevealed && !contact) return (
+                          <span className="text-[11px] text-gray-500">Couldn't find contact</span>
+                        )
+                        return (
                           <button
-                            onClick={() => setRevealedLeads(prev => new Set([...prev, lead.lead_id]))}
+                            onClick={() => revealContact(lead)}
                             className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 text-[11px] font-medium border border-emerald-500/30 hover:bg-emerald-500/25 transition"
                           >
                             Reveal contact ✦
                           </button>
                         )
-                      ) : (
-                        <button
-                          disabled
-                          className="px-3 py-1.5 rounded-lg bg-white/3 text-gray-600 text-[11px] font-medium border border-white/5 cursor-not-allowed select-none"
-                        >
-                          No contact
-                        </button>
+                      })()}
                       )}
                     </div>
                   </motion.div>
