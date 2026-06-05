@@ -219,16 +219,13 @@ def chat_message(req: ChatMessageRequest):
 
     try:
         print(f"[Chat] Sonnet — {len(messages)} msgs, last: '{message[:60]}'")
-        # Prefill forces Sonnet to start its reply with `{` — eliminates preamble/markdown
-        messages_with_prefill = messages + [{"role": "assistant", "content": "{"}]
         resp = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=600,
             system=SONNET_SYSTEM,
-            messages=messages_with_prefill,
+            messages=messages,
         )
-        # Anthropic returns only the *continuation* after the prefill — prepend the `{` back
-        raw = ("{" + resp.content[0].text).strip()
+        raw = resp.content[0].text.strip()
         print(f"[Chat] Sonnet raw: {raw[:300]}")
         result = _extract_json(raw)
 
