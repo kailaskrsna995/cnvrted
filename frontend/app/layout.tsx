@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   title: "cnvrted",
   description: "Realtime commercial intent intelligence",
   icons: {
-    icon: "/favicon.jpg",
-    shortcut: "/favicon.jpg",
-    apple: "/favicon.jpg",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
