@@ -32,8 +32,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${cormorant.variable} ${spaceMono.variable} h-full`}>
       <head>
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="shortcut icon" href="/favicon.png" type="image/png" />
+        <link rel="icon" href="/favicon.png?v=2" type="image/png" />
+        <link rel="shortcut icon" href="/favicon.png?v=2" type="image/png" />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
