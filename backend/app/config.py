@@ -10,6 +10,9 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 # Anthropic
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
+# V1 legacy (kept so ingestion.py doesn't break during V2 build)
+APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN", "")
+
 # Agent APIs
 PRAW_CLIENT_ID = os.getenv("PRAW_CLIENT_ID", "")
 PRAW_CLIENT_SECRET = os.getenv("PRAW_CLIENT_SECRET", "")
