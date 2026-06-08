@@ -4,6 +4,7 @@ from app.routes import leads, ingest
 from app.routes.users import users_router, search_router
 from app.routes.chat import router as chat_router
 from app.routes.enrich import router as enrich_router
+from app.routes.news import router as news_router
 from app.scorer import get_token_usage
 
 app = FastAPI(title="Intent Intelligence API", redirect_slashes=False)
@@ -21,6 +22,7 @@ app.include_router(users_router)
 app.include_router(search_router)
 app.include_router(chat_router)
 app.include_router(enrich_router)
+app.include_router(news_router)
 
 @app.get("/")
 def root():
