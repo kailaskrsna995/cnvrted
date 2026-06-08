@@ -940,20 +940,15 @@ async def run_ingestion(
         #   2. Direct keywords: use keyword as-is (catches hiring posts + varied phrasing)
         #   3. Hiring-role: "hiring [topic]" — companies posting marketing/growth roles
         # Cap at 6 total to avoid too many Apify runs per scan.
-        # Use stripped topic words for LinkedIn — raw buyer-intent phrases like
-        # "drowning in video edits" produce 0 results; clean topic terms work.
-        core_topics     = [_make_reddit_search_query(kw) for _, kw in keyword_map[:2]]
-        buyer_queries   = [f"need {t}" for t in core_topics]
-        direct_queries  = [f"looking for {t}" for t in core_topics]
-        hiring_queries  = [f"hiring {t}" for t in core_topics]
-        li_queries = buyer_queries + direct_queries + hiring_queries
+        # Bare core topic words — LinkedIn LLM scorer filters quality.
+        # Framed phrases like "can anyone recommend drowning in video edits" return 0.
+        li_queries = [_make_reddit_search_query(kw) for _, kw in keyword_map[:6]]
         # Deduplicate in case buyer_query == direct_query
         seen_q: set = set()
         li_queries = [q for q in li_queries if not (q in seen_q or seen_q.add(q))]
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         # Extend keyword_map to match li_queries length for the zip() below
-        li_keyword_map = list(keyword_map[:2]) + list(keyword_map[:2]) + list(keyword_map[:2])
-        li_keyword_map = li_keyword_map[:len(li_queries)]
+        li_keyword_map = list(keyword_map[:6])[:len(li_queries)]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
         # Google/Serper LinkedIn — disabled until paid Serper plan (free plan blocks site: queries)
