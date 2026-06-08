@@ -1,12 +1,34 @@
+import re
 import httpx
 from fastapi import APIRouter, HTTPException
-from app.config import APOLLO_API_KEY, HUNTER_API_KEY
+from app.config import HUNTER_API_KEY
 from app.database import supabase
 
 router = APIRouter(prefix="/leads", tags=["enrich"])
 
-APOLLO_URL  = "https://api.apollo.io/api/v1/people/match"
 HUNTER_BASE = "https://api.hunter.io/v2"
+
+# Regex patterns for extracting contact info directly from post text
+EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+PHONE_RE = re.compile(r"(?:\+?\d[\d\s\-().]{7,}\d)")
+
+
+def _extract_from_text(text: str) -> dict:
+    """Extract email and phone directly from post text — free, instant."""
+    email = ""
+    phone = ""
+    if text:
+        email_match = EMAIL_RE.search(text)
+        if email_match:
+            email = email_match.group(0)
+        phone_match = PHONE_RE.search(text)
+        if phone_match:
+            raw = phone_match.group(0).strip()
+            # Only keep if it looks like a real phone (at least 7 digits)
+            digits = re.sub(r"\D", "", raw)
+            if len(digits) >= 7:
+                phone = raw
+    return {"email": email, "phone": phone}
 
 
 def _parse_name(full_name: str):
@@ -16,20 +38,26 @@ def _parse_name(full_name: str):
     return first, last
 
 
-async def _hunter_enrich(client: httpx.AsyncClient, first: str, last: str, company: str, linkedin_url: str) -> dict:
-    """Try Hunter.io — returns {email, phone} or empty strings."""
+async def _hunter_enrich(client: httpx.AsyncClient, first: str, last: str, company: str) -> dict:
+    """
+    Hunter.io two-step lookup:
+      1. domain-search by company name → get domain
+      2. email-finder by domain + name → get email
+    Returns {email, phone} or empty strings.
+    Hard timeout: 8s per call, 16s max total.
+    """
     if not HUNTER_API_KEY:
         return {"email": "", "phone": ""}
 
     domain = ""
 
-    # Step 1 — get domain from LinkedIn URL company or company name
+    # Step 1 — find domain from company name
     if company:
         try:
             r = await client.get(
                 f"{HUNTER_BASE}/domain-search",
                 params={"company": company, "api_key": HUNTER_API_KEY, "limit": 1},
-                timeout=10,
+                timeout=8,
             )
             if r.status_code == 200:
                 domain = r.json().get("data", {}).get("domain", "")
@@ -37,9 +65,10 @@ async def _hunter_enrich(client: httpx.AsyncClient, first: str, last: str, compa
             print(f"[Hunter] domain-search error: {e}")
 
     if not domain:
+        print(f"[Hunter] No domain found for company='{company}'")
         return {"email": "", "phone": ""}
 
-    # Step 2 — find email with domain + name
+    # Step 2 — find email from domain + name
     try:
         r = await client.get(
             f"{HUNTER_BASE}/email-finder",
@@ -49,50 +78,17 @@ async def _hunter_enrich(client: httpx.AsyncClient, first: str, last: str, compa
                 "last_name":  last,
                 "api_key":    HUNTER_API_KEY,
             },
-            timeout=10,
+            timeout=8,
         )
         if r.status_code == 200:
             data  = r.json().get("data", {})
             email = data.get("email", "")
-            print(f"[Hunter] {first} {last} @ {domain} → {email}")
+            print(f"[Hunter] {first} {last} @ {domain} → email={email}")
             return {"email": email, "phone": ""}
     except Exception as e:
         print(f"[Hunter] email-finder error: {e}")
 
     return {"email": "", "phone": ""}
-
-
-async def _apollo_enrich(client: httpx.AsyncClient, first: str, last: str, company: str, linkedin_url: str) -> dict:
-    """Try Apollo — returns {email, phone} or empty strings."""
-    if not APOLLO_API_KEY:
-        return {"email": "", "phone": ""}
-
-    payload: dict = {"first_name": first, "last_name": last, "reveal_personal_emails": True}
-    if company:
-        payload["organization_name"] = company
-    if linkedin_url and "linkedin.com" in linkedin_url:
-        payload["linkedin_url"] = linkedin_url
-
-    try:
-        resp = await client.post(
-            APOLLO_URL,
-            headers={"x-api-key": APOLLO_API_KEY, "Content-Type": "application/json", "Cache-Control": "no-cache"},
-            json=payload,
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            print(f"[Apollo] Error {resp.status_code}: {resp.text[:200]}")
-            return {"email": "", "phone": ""}
-
-        person = resp.json().get("person", {})
-        email  = (person.get("personal_emails") or [person.get("email", "")])[0] or ""
-        phones = person.get("phone_numbers", [])
-        phone  = phones[0].get("raw_number", "") if phones else ""
-        print(f"[Apollo] {first} {last} → email={email} phone={phone}")
-        return {"email": email, "phone": phone}
-    except Exception as e:
-        print(f"[Apollo] error: {e}")
-        return {"email": "", "phone": ""}
 
 
 @router.post("/{lead_id}/enrich/")
@@ -104,51 +100,73 @@ async def enrich_lead(lead_id: str):
 
     lead = result.data[0]
 
-    # Return cached data if already enriched
+    # ── Step 1: return cached DB data if already enriched ──────────────────
     if lead.get("contact_email") or lead.get("contact_phone"):
         return {
             "contact_email": lead.get("contact_email", ""),
             "contact_phone": lead.get("contact_phone", ""),
-            "found": bool(lead.get("contact_email") or lead.get("contact_phone")),
-            "cached": True,
+            "source":        "cached",
+            "found":         True,
         }
 
-    first, last   = _parse_name(lead.get("author", ""))
-    company       = lead.get("company", "") or ""
-    linkedin_url  = lead.get("contact_linkedin", "") or ""
-    platform      = lead.get("platform", "linkedin")
+    # ── Step 2: extract directly from post text (free, instant) ────────────
+    post_text = lead.get("post_text", "") or ""
+    extracted = _extract_from_text(post_text)
+    if extracted["email"] or extracted["phone"]:
+        supabase.table("leads").update({
+            "contact_email": extracted["email"],
+            "contact_phone": extracted["phone"],
+        }).eq("lead_id", lead_id).execute()
+        return {
+            "contact_email": extracted["email"],
+            "contact_phone": extracted["phone"],
+            "source":        "post",
+            "found":         True,
+        }
 
-    # For Twitter leads extract company hint from profession/bio
+    # ── Step 3: try Hunter.io ───────────────────────────────────────────────
+    first, last  = _parse_name(lead.get("author", ""))
+    company      = lead.get("company", "") or ""
+    platform     = lead.get("platform", "linkedin")
+
+    # For Twitter leads: extract company hint from profession/bio
     if platform == "twitter" and not company:
         profession = lead.get("profession", "") or ""
-        # Simple heuristic: "Founder at Acme" → "Acme"
         for marker in [" at ", " @ ", " | ", " - "]:
             if marker in profession:
                 company = profession.split(marker)[-1].strip().split(" ")[0]
                 break
 
-    async with httpx.AsyncClient() as client:
-        # Primary: Hunter.io (free tier)
-        result_data = await _hunter_enrich(client, first, last, company, linkedin_url)
+    if company and first:
+        async with httpx.AsyncClient() as client:
+            hunter_result = await _hunter_enrich(client, first, last, company)
 
-        # Fallback: Apollo
-        if not result_data["email"]:
-            result_data = await _apollo_enrich(client, first, last, company, linkedin_url)
+        email = hunter_result["email"]
+        phone = hunter_result["phone"]
 
-    email = result_data["email"]
-    phone = result_data["phone"]
-    found = bool(email or phone)
+        if email or phone:
+            supabase.table("leads").update({
+                "contact_email": email,
+                "contact_phone": phone,
+            }).eq("lead_id", lead_id).execute()
+            return {
+                "contact_email": email,
+                "contact_phone": phone,
+                "source":        "hunter",
+                "found":         True,
+            }
 
-    # Save back to DB only if we found something
-    if found:
-        supabase.table("leads").update({
-            "contact_email": email,
-            "contact_phone": phone,
-        }).eq("lead_id", lead_id).execute()
+    # ── Step 4: nothing found ───────────────────────────────────────────────
+    # Mark as attempted so we don't keep trying
+    supabase.table("leads").update({
+        "contact_email": "",
+        "contact_phone": "",
+    }).eq("lead_id", lead_id).execute()
 
     return {
-        "contact_email": email,
-        "contact_phone": phone,
-        "found": found,
-        "cached": False,
+        "contact_email": "",
+        "contact_phone": "",
+        "source":        "none",
+        "found":         False,
+        "message":       "Not available",
     }
