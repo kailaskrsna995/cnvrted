@@ -150,15 +150,15 @@ SELLER_SIGNALS = [
     "i'm an editor", "i am an editor",
 ]
 
-# Job listings — companies hiring employees, not buying agency services
-# Keep this tight — false positives here silently discard real buyer posts
+# Job listings — only reject posts that are CLEARLY employee-seeking, not company hiring posts.
+# IMPORTANT: "we're hiring Head of Marketing" = BUYER (company has gap, needs agency).
+# Only reject posts where someone is posting a structured job ad for candidates to apply to.
+# The LLM scorer handles the rest — it already scores hiring posts as buyers (40-75).
 JOB_LISTING_SIGNALS = [
-    "we're hiring", "we are hiring", "now hiring", "#hiring",
-    "join our team", "job opening",
-    "open position", "apply now", "apply here",
     "send your cv", "send your resume", "send cv", "send resume",
     "job description", "responsibilities:", "salary:",
     "internship",
+    "apply now", "apply here",
 ]
 
 # Tight buyer-intent phrases — people actively seeking to PAY someone externally.
@@ -935,14 +935,22 @@ async def run_ingestion(
     async with httpx.AsyncClient(timeout=300) as client:
         from app.config import SERPER_API_KEY
 
-        # LinkedIn: 2 buyer-framing queries (PRIORITY — explicit agency-hire asks) +
-        # 1 hiring-role query (FILLER — companies hiring for a relevant role; scorer
-        # distinguishes brand hires = buyers vs. agency internal hires = low score).
-        li_queries = (
-            [_make_linkedin_buyer_query(kw) for _, kw in keyword_map[:2]] +
-            [f"hiring {_make_reddit_search_query(kw)}" for _, kw in keyword_map[2:3]]
-        )
+        # LinkedIn queries — three types run in parallel:
+        #   1. Buyer-framing: "can anyone recommend X agency" — explicit hire asks
+        #   2. Direct keywords: use keyword as-is (catches hiring posts + varied phrasing)
+        #   3. Hiring-role: "hiring [topic]" — companies posting marketing/growth roles
+        # Cap at 6 total to avoid too many Apify runs per scan.
+        buyer_queries   = [_make_linkedin_buyer_query(kw) for _, kw in keyword_map[:2]]
+        direct_queries  = [kw for _, kw in keyword_map[:2]]   # raw keywords — catches hiring posts
+        hiring_queries  = [f"hiring {_make_reddit_search_query(kw)}" for _, kw in keyword_map[:2]]
+        li_queries = buyer_queries + direct_queries + hiring_queries
+        # Deduplicate in case buyer_query == direct_query
+        seen_q: set = set()
+        li_queries = [q for q in li_queries if not (q in seen_q or seen_q.add(q))]
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
+        # Extend keyword_map to match li_queries length for the zip() below
+        li_keyword_map = list(keyword_map[:2]) + list(keyword_map[:2]) + list(keyword_map[:2])
+        li_keyword_map = li_keyword_map[:len(li_queries)]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
         # Google/Serper LinkedIn — disabled until paid Serper plan (free plan blocks site: queries)
@@ -971,7 +979,7 @@ async def run_ingestion(
         # that the rigid phrase list zeroed out (saved=0). Letting the LLM scorer
         # judge buyer intent lets genuine buyers with varied wording through while
         # content/sellers get scored low and dropped by the `qualified` gate.
-        for (category, keyword), posts in zip(keyword_map, linkedin_results):
+        for (category, keyword), posts in zip(li_keyword_map, linkedin_results):
             if isinstance(posts, Exception):
                 print(f"[Error] LinkedIn keyword='{keyword}': {posts}")
                 continue
