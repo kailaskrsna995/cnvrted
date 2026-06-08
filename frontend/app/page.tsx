@@ -131,6 +131,9 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // ── News ticker ───────────────────────────────────────────────────────────
+  const [newsTicker, setNewsTicker] = useState<{ title: string; url: string; source: string }[]>([])
+
   // ── UI state ──────────────────────────────────────────────────────────────
   const [profileOpen, setProfileOpen] = useState(false)
   const [previewLead, setPreviewLead] = useState<Lead | null>(null)
@@ -176,6 +179,16 @@ export default function Dashboard() {
     }
     setReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!ready || !userId) return
+    fetch(`${API}/news/?user_id=${userId}&limit=20`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.articles?.length) setNewsTicker(data.articles.map((a: any) => ({ title: a.title, url: a.url, source: a.source })))
+      })
+      .catch(() => {})
+  }, [ready, userId])
 
   useEffect(() => {
     if (!ready || !userId) return
@@ -531,6 +544,25 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* News ticker */}
+        {newsTicker.length > 0 && (
+          <div className="shrink-0 border-b border-white/5 bg-[#07070a] overflow-hidden" style={{ height: 28 }}>
+            <div className="flex items-center h-full gap-2 px-3">
+              <span className="shrink-0 text-[10px] font-semibold text-indigo-400 uppercase tracking-widest">News</span>
+              <div className="flex-1 overflow-hidden relative">
+                <div className="ticker-track flex gap-10 text-[11px] text-gray-400 whitespace-nowrap">
+                  {[...newsTicker, ...newsTicker].map((a, i) => (
+                    <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                      className="hover:text-white transition shrink-0">
+                      <span className="text-gray-600 mr-1">{a.source} ·</span>{a.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chat — stats + greeting live inside its scroll, rerun/new below header */}
         <div className="flex-1 flex flex-col min-h-0">

@@ -58,6 +58,17 @@ html, body {
   100% { border-radius: 60% 40% 30% 70% / 55% 35% 65% 45%; transform: rotate(-2deg) scale(1); }
 }
 
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker 60s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
 .wave-fill {
   position: absolute;
   width: 130vw;

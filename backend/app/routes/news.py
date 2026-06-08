@@ -52,11 +52,8 @@ async def get_news(user_id: str = Query(...), limit: int = 20):
     except Exception as e:
         print(f"[News] Could not fetch user service: {e}")
 
-    if not service:
-        return {"articles": [], "query": "", "error": "No service description found — run a scan first"}
-
-    query = _build_query(service)
-    print(f"[News] user_id={user_id} service='{service[:60]}' query='{query}'")
+    query = "startup funding product launch"
+    print(f"[News] user_id={user_id} query='{query}'")
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
