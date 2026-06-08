@@ -940,15 +940,23 @@ async def run_ingestion(
         #   2. Direct keywords: use keyword as-is (catches hiring posts + varied phrasing)
         #   3. Hiring-role: "hiring [topic]" — companies posting marketing/growth roles
         # Cap at 6 total to avoid too many Apify runs per scan.
-        # Bare core topic words — LinkedIn LLM scorer filters quality.
-        # Framed phrases like "can anyone recommend drowning in video edits" return 0.
-        li_queries = [_make_reddit_search_query(kw) for _, kw in keyword_map[:6]]
-        # Deduplicate in case buyer_query == direct_query
+        # Use broad 1-2 word terms for LinkedIn — niche phrases return 0 or fail.
+        # Cap at 3 runs: running 6+ parallel Apify jobs causes FAILED status.
+        def _broad(kw: str) -> str:
+            # Try stripped topic first; fall back to last 2 words of raw keyword
+            stripped = _make_reddit_search_query(kw).split()
+            if len(stripped) >= 2:
+                return " ".join(stripped[:2])
+            # single word from stripping — take last 2 meaningful words of raw keyword
+            NOISE = {"the","a","an","of","in","on","at","to","for","with","our","my","up","by","can","cant","keep","just","more","new","need","want","get","have","make","not","are","is","do"}
+            raw_words = [w for w in kw.lower().split() if w not in NOISE and len(w) > 2]
+            return " ".join(raw_words[-2:]) if len(raw_words) >= 2 else stripped[0] if stripped else kw
         seen_q: set = set()
-        li_queries = [q for q in li_queries if not (q in seen_q or seen_q.add(q))]
+        li_queries = [q for kw in [kw for _, kw in keyword_map[:6]]
+                      if not ((q := _broad(kw)) in seen_q or seen_q.add(q))][:3]
         linkedin_tasks = [fetch_apify_results(client, q) for q in li_queries]
         # Extend keyword_map to match li_queries length for the zip() below
-        li_keyword_map = list(keyword_map[:6])[:len(li_queries)]
+        li_keyword_map = list(keyword_map[:3])[:len(li_queries)]
         print(f"[Ingestion] LinkedIn queries: {li_queries}")
 
         # Google/Serper LinkedIn — disabled until paid Serper plan (free plan blocks site: queries)
