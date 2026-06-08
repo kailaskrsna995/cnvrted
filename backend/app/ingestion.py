@@ -940,9 +940,12 @@ async def run_ingestion(
         #   2. Direct keywords: use keyword as-is (catches hiring posts + varied phrasing)
         #   3. Hiring-role: "hiring [topic]" — companies posting marketing/growth roles
         # Cap at 6 total to avoid too many Apify runs per scan.
-        buyer_queries   = [_make_linkedin_buyer_query(kw) for _, kw in keyword_map[:2]]
-        direct_queries  = [kw for _, kw in keyword_map[:2]]   # raw keywords — catches hiring posts
-        hiring_queries  = [f"hiring {_make_reddit_search_query(kw)}" for _, kw in keyword_map[:2]]
+        # Use stripped topic words for LinkedIn — raw buyer-intent phrases like
+        # "drowning in video edits" produce 0 results; clean topic terms work.
+        core_topics     = [_make_reddit_search_query(kw) for _, kw in keyword_map[:2]]
+        buyer_queries   = [f"need {t}" for t in core_topics]
+        direct_queries  = [f"looking for {t}" for t in core_topics]
+        hiring_queries  = [f"hiring {t}" for t in core_topics]
         li_queries = buyer_queries + direct_queries + hiring_queries
         # Deduplicate in case buyer_query == direct_query
         seen_q: set = set()
