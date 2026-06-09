@@ -546,7 +546,7 @@ export default function Dashboard() {
         </div>
 
         {/* News ticker */}
-        {newsTicker.length > 0 && (
+        {newsTicker.length > 0 && (<>
           <div className="shrink-0 bg-[#07070a] overflow-hidden" style={{ height: '1.5cm' }}>
             <div className="flex items-center h-full gap-2 px-3">
               <span className="shrink-0 text-[10px] font-semibold text-indigo-400 uppercase tracking-widest">News</span>
@@ -563,7 +563,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="h-px bg-purple-500/40 shrink-0" />
-        )}
+        </>)}
 
         {/* Chat — stats + greeting live inside its scroll, rerun/new below header */}
         <div className="flex-1 flex flex-col min-h-0">
